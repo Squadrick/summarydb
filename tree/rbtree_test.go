@@ -56,20 +56,11 @@ func TestInsertDeleteAndGet(t *testing.T) {
 	for i := 1; i < 150; i++ {
 		key := Uint64Key(i)
 		if value, ok := tree.Get(&key); ok {
-			intValue, ok := value.(int)
-			if !ok {
-				t.Fatalf("Conversion from interface{} to int failed\n")
-			}
-			if intValue != i+10 {
-				t.Fatalf("%d != %d\n", intValue, i)
-			}
+			assertEqual(t, value.(int), i+10)
 			count++
 		}
 	}
-
-	if count != 99 { // all but 0
-		t.Fatalf("Count mismatch: %d != 100\n", count)
-	}
+	assertEqual(t, count, 99) // all but 0
 
 	for i := 1; i < 100; i++ {
 		key := Uint64Key(i)
@@ -84,9 +75,7 @@ func TestInsertDeleteAndGet(t *testing.T) {
 	if !ok {
 		t.Fatalf("Could not get remaining key\n")
 	}
-	if value.(int) != 999 {
-		t.Fatalf("Value is not correct\n")
-	}
+	assertEqual(t, value.(int), 999)
 
 	tree.Delete(&zeroKey)
 
