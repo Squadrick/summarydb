@@ -3,22 +3,22 @@ package window
 import "summarystore/tree"
 
 type GenericWindowing struct {
-	lengthSeq LengthsSequence
-	firstWindowOfLength *tree.RbTree
+	lengthSeq             LengthsSequence
+	firstWindowOfLength   *tree.RbTree
 	windowStartMarkersSet *tree.RbTree
-	firstWindowLength int64
-	lastWindowStart int64
-	lastWindowLength int64
+	firstWindowLength     int64
+	lastWindowStart       int64
+	lastWindowLength      int64
 }
 
 func NewGenericWindowing(lengthSeq LengthsSequence) *GenericWindowing {
 	genericWindow := &GenericWindowing{
-		lengthSeq:           lengthSeq,
-		firstWindowOfLength: tree.NewRbTree(),
-		windowStartMarkersSet:  tree.NewRbTree(),
-		firstWindowLength:   lengthSeq.NextWindowLength(),
-		lastWindowStart:     0,
-		lastWindowLength:    0,
+		lengthSeq:             lengthSeq,
+		firstWindowOfLength:   tree.NewRbTree(),
+		windowStartMarkersSet: tree.NewRbTree(),
+		firstWindowLength:     lengthSeq.NextWindowLength(),
+		lastWindowStart:       0,
+		lastWindowLength:      0,
 	}
 	genericWindow.addWindow(genericWindow.firstWindowLength)
 	return genericWindow
@@ -31,7 +31,7 @@ func (gwin *GenericWindowing) addWindow(length int64) {
 		gwin.firstWindowOfLength.Insert(&lengthKey, gwin.lastWindowStart)
 	}
 	lastWindowStartKey := tree.Int64Key(gwin.lastWindowStart)
-	gwin.windowStartMarkersSet.Insert(&lastWindowStartKey, lastWindowStartKey)
+	gwin.windowStartMarkersSet.Insert(&lastWindowStartKey, gwin.lastWindowStart)
 	gwin.lastWindowLength = length
 }
 
@@ -39,7 +39,7 @@ func (gwin *GenericWindowing) addWindow(length int64) {
 // length is not achievable.
 func (gwin *GenericWindowing) addWindowsUntilLength(targetLength int64) bool {
 	if targetLength > gwin.lengthSeq.MaxWindowSize() {
-		return false;
+		return false
 	} else {
 		for gwin.lastWindowLength < targetLength {
 			gwin.addWindow(gwin.lengthSeq.NextWindowLength())
@@ -97,7 +97,7 @@ func (gwin *GenericWindowing) GetFirstContainingTime(Tl, Tr, T int64) (int64, bo
 		return T, true
 	} else {
 		// TODO(squadrick): Find example that hits this case
-		if currWindowR - currWindowL + 1 < length {
+		if currWindowR-currWindowL+1 < length {
 			return 0, false
 		}
 
@@ -117,24 +117,19 @@ func (gwin *GenericWindowing) GetWindowsCoveringUpto(n int64) []int64 {
 
 	gwin.addWindowsPastMarker(n)
 
-	// TODO(squadrick): GetDenseMap() is O(n) since it builds the map each call. Optimize this.
-	denseMap := gwin.windowStartMarkersSet.GetDenseMap()
-	keys := denseMap.GetKeys()
-	windows := make([]int64, 0, len(keys))
+	windows := make([]int64, 0, gwin.windowStartMarkersSet.Count())
 	prevMarker := int64(0)
 
-	for _, key := range keys {
-		value, _ := denseMap.Get(key)
-		currentMarker := int64(value.(tree.Int64Key))
-		if currentMarker == 0 {
-			continue
-		}
+	gwin.windowStartMarkersSet.Map(func(_ tree.RbKey, value interface{}) bool {
+		currentMarker := value.(int64)
 		if currentMarker <= n {
-			windows = append(windows, currentMarker - prevMarker)
-			prevMarker = currentMarker
-		} else {
-			break
+			if currentMarker != 0 {
+				windows = append(windows, currentMarker-prevMarker)
+				prevMarker = currentMarker
+			}
+			return false
 		}
-	}
+		return true
+	})
 	return windows
 }

@@ -80,6 +80,15 @@ func TestInsertDeleteAndGet(t *testing.T) {
 		}
 	}
 
+	sum := 0
+	tree.Map(func(key RbKey, i interface{}) bool {
+		sum += i.(int)
+		if i.(int) == 20 {
+			return true
+		}
+		return false
+	})
+	assertEqual(t, sum, 1154)
 
 	for i := 1; i < 100; i++ {
 		key := Int64Key(i)

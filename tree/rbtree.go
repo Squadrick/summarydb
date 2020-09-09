@@ -34,7 +34,7 @@ type RbTree struct {
 	root    *rbNode
 	count   int
 	version uint32
-	mutex *sync.RWMutex
+	mutex   *sync.RWMutex
 }
 
 func NewRbTree() *RbTree {
@@ -277,7 +277,7 @@ func (tree *RbTree) Ceiling(key RbKey) (RbKey, interface{}) {
 }
 
 // Higher returns the smallest key in the tree strictly greater than key
-func (tree *RbTree) Higher (key RbKey) (RbKey, interface{}) {
+func (tree *RbTree) Higher(key RbKey) (RbKey, interface{}) {
 	tree.mutex.RLock()
 	defer tree.mutex.RUnlock()
 	if key != nil && tree.root != nil {
@@ -409,7 +409,7 @@ func (tree *RbTree) Delete(key RbKey) {
 }
 
 type OrderedMap struct {
-	m map[RbKey]interface{}
+	m    map[RbKey]interface{}
 	keys []RbKey
 }
 
@@ -438,31 +438,57 @@ func (oMap *OrderedMap) GetKeys() []RbKey {
 	return oMap.keys
 }
 
-func traverseAll(node *rbNode, denseMap *OrderedMap) {
+type RbTreeCallback func(RbKey, interface{}) bool
+
+func traverseAll(node *rbNode, callback RbTreeCallback) bool {
 	if node == nil {
-		return
+		return false
 	}
 
 	if node.left != nil {
-		traverseAll(node.left, denseMap)
+		shouldTerminate := traverseAll(node.left, callback)
+		if shouldTerminate {
+			return true
+		}
 	}
 
-	denseMap.Set(node.key, node.value)
+	shouldTerminate := callback(node.key, node.value)
+	if shouldTerminate {
+		return true
+	}
 
 	if node.right != nil {
-		traverseAll(node.right, denseMap)
+		shouldTerminate := traverseAll(node.right, callback)
+		if shouldTerminate {
+			return true
+		}
 	}
+	return false
+}
+
+func (tree *RbTree) Map(fn RbTreeCallback) {
+	if tree.IsEmpty() {
+		return
+	}
+
+	tree.mutex.RLock()
+	defer tree.mutex.RUnlock()
+
+	traverseAll(tree.root, fn)
 }
 
 func (tree *RbTree) GetDenseMap() *OrderedMap {
 	if tree.IsEmpty() {
 		return nil
 	}
-	tree.mutex.Lock()
-	defer tree.mutex.Unlock()
+	tree.mutex.RLock()
+	defer tree.mutex.RUnlock()
 
 	denseMap := NewOrderedMap()
-	traverseAll(tree.root, denseMap)
+	traverseAll(tree.root, func(key RbKey, value interface{}) bool {
+		denseMap.Set(key, value)
+		return false
+	})
 	return denseMap
 }
 

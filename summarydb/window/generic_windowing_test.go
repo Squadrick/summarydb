@@ -25,7 +25,7 @@ func TestGenericWindowing_GetFirstContainingTime(t *testing.T) {
 	expSeq := NewExponentialLengthsSequence(2)
 	window := NewGenericWindowing(expSeq)
 
-	getTime := func (Tl, Tr, T int64) int64 {
+	getTime := func(Tl, Tr, T int64) int64 {
 		value, ok := window.GetFirstContainingTime(Tl, Tr, T)
 		if !ok {
 			t.Fatalf("Getting value failed for: [%d, %d, %d]\n", Tl, Tr, T)
@@ -65,7 +65,7 @@ func TestGenericWindowing_GetSizeOfFirstWindow(t *testing.T) {
 func TestGenericWindowing_GetWindowsCoveringUpto(t *testing.T) {
 	window := NewGenericWindowing(NewExponentialLengthsSequence(2))
 
-	arrayEqual := func (a, b []int64) bool {
+	arrayEqual := func(a, b []int64) bool {
 		if (a == nil) != (b == nil) {
 			return false
 		}
@@ -87,7 +87,7 @@ func TestGenericWindowing_GetWindowsCoveringUpto(t *testing.T) {
 }
 
 func benchmarkGetWindowsCoveringUpto(input int, b *testing.B) {
-	for n:=0; n < b.N; n++ {
+	for n := 0; n < b.N; n++ {
 		window := NewGenericWindowing(NewExponentialLengthsSequence(2))
 		_ = window.GetWindowsCoveringUpto(int64(input))
 	}
