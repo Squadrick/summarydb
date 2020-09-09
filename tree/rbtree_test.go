@@ -12,24 +12,24 @@ func assertEqual(t *testing.T, a interface{}, b interface{}) {
 
 func TestInsertDeleteAndGet(t *testing.T) {
 	tree := NewRbTree()
-	zeroKey := Uint64Key(0)
+	zeroKey := Int64Key(0)
 	for i := 0; i < 25; i++ {
-		key := Uint64Key(i)
+		key := Int64Key(i)
 		tree.Insert(&key, 10+i)
 	}
 
 	for i := 50; i < 100; i += 2 {
-		key := Uint64Key(i)
+		key := Int64Key(i)
 		tree.Insert(&key, 10+i)
 	}
 
 	for i := 51; i < 100; i += 2 {
-		key := Uint64Key(i)
+		key := Int64Key(i)
 		tree.Insert(&key, 10+i)
 	}
 
 	for i := 49; i >= 25; i-- {
-		key := Uint64Key(i)
+		key := Int64Key(i)
 		tree.Insert(&key, 10+i)
 	}
 
@@ -42,7 +42,7 @@ func TestInsertDeleteAndGet(t *testing.T) {
 	_, maxValue := tree.Max()
 	assertEqual(t, maxValue.(int), 109)
 
-	fiftyKey := Uint64Key(50)
+	fiftyKey := Int64Key(50)
 	tree.Delete(&fiftyKey)
 
 	_, floorVal := tree.Floor(&fiftyKey)
@@ -51,10 +51,12 @@ func TestInsertDeleteAndGet(t *testing.T) {
 	assertEqual(t, ceilVal.(int), 61)
 
 	tree.Insert(&fiftyKey, 60)
+	_, higherVal := tree.Higher(&fiftyKey)
+	assertEqual(t, higherVal.(int), 61)
 
 	count := 0
 	for i := 1; i < 150; i++ {
-		key := Uint64Key(i)
+		key := Int64Key(i)
 		if value, ok := tree.Get(&key); ok {
 			assertEqual(t, value.(int), i+10)
 			count++
@@ -62,8 +64,25 @@ func TestInsertDeleteAndGet(t *testing.T) {
 	}
 	assertEqual(t, count, 99) // all but 0
 
+	denseMap := tree.GetDenseMap()
+	keys := denseMap.GetKeys()
+	assertEqual(t, len(keys), tree.Count())
+
+	for iter, mapKey := range keys {
+		value, ok := denseMap.Get(mapKey)
+		if !ok {
+			t.Fatalf("Lookup failed for: %d\n", iter)
+		}
+		if iter == 0 {
+			assertEqual(t, 999, value.(int))
+		} else {
+			assertEqual(t, iter+10, value.(int))
+		}
+	}
+
+
 	for i := 1; i < 100; i++ {
-		key := Uint64Key(i)
+		key := Int64Key(i)
 		tree.Delete(&key)
 	}
 

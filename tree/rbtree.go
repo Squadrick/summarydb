@@ -1,5 +1,7 @@
 package tree
 
+import "sync"
+
 type KeyComparison int8
 
 const (
@@ -32,10 +34,13 @@ type RbTree struct {
 	root    *rbNode
 	count   int
 	version uint32
+	mutex *sync.RWMutex
 }
 
 func NewRbTree() *RbTree {
-	return &RbTree{}
+	return &RbTree{
+		mutex: &sync.RWMutex{},
+	}
 }
 
 func newRbNode(key RbKey, value interface{}) *rbNode {
@@ -104,6 +109,25 @@ func ceiling(node *rbNode, key RbKey) *rbNode {
 		return ceiling(node.right, key)
 	default: // KeyIsLess
 		cn := ceiling(node.left, key)
+		if cn != nil {
+			return cn
+		}
+		return node
+	}
+}
+
+func higher(node *rbNode, key RbKey) *rbNode {
+	if node == nil {
+		return nil
+	}
+
+	switch key.ComparedTo(node.key) {
+	case KeysAreEqual:
+		fallthrough
+	case KeyIsGreater:
+		return higher(node.right, key)
+	default:
+		cn := higher(node.left, key)
 		if cn != nil {
 			return cn
 		}
@@ -195,6 +219,8 @@ func deleteMin(node *rbNode) *rbNode {
 }
 
 func (tree *RbTree) Count() int {
+	tree.mutex.RLock()
+	defer tree.mutex.RUnlock()
 	return tree.count
 }
 
@@ -203,6 +229,8 @@ func (tree *RbTree) IsEmpty() bool {
 }
 
 func (tree *RbTree) Min() (RbKey, interface{}) {
+	tree.mutex.RLock()
+	defer tree.mutex.RUnlock()
 	if tree.root != nil {
 		result := min(tree.root)
 		return result.key, result.value
@@ -211,6 +239,8 @@ func (tree *RbTree) Min() (RbKey, interface{}) {
 }
 
 func (tree *RbTree) Max() (RbKey, interface{}) {
+	tree.mutex.RLock()
+	defer tree.mutex.RUnlock()
 	if tree.root != nil {
 		result := max(tree.root)
 		return result.key, result.value
@@ -220,6 +250,8 @@ func (tree *RbTree) Max() (RbKey, interface{}) {
 
 // Floor returns the largest key in the tree less than or equal to key
 func (tree *RbTree) Floor(key RbKey) (RbKey, interface{}) {
+	tree.mutex.RLock()
+	defer tree.mutex.RUnlock()
 	if key != nil && tree.root != nil {
 		node := floor(tree.root, key)
 		if node == nil {
@@ -232,8 +264,24 @@ func (tree *RbTree) Floor(key RbKey) (RbKey, interface{}) {
 
 // Ceiling returns the smallest key in the tree greater than or equal to key
 func (tree *RbTree) Ceiling(key RbKey) (RbKey, interface{}) {
+	tree.mutex.RLock()
+	defer tree.mutex.RUnlock()
 	if key != nil && tree.root != nil {
 		node := ceiling(tree.root, key)
+		if node == nil {
+			return nil, nil
+		}
+		return node.key, node.value
+	}
+	return nil, nil
+}
+
+// Higher returns the smallest key in the tree strictly greater than key
+func (tree *RbTree) Higher (key RbKey) (RbKey, interface{}) {
+	tree.mutex.RLock()
+	defer tree.mutex.RUnlock()
+	if key != nil && tree.root != nil {
+		node := higher(tree.root, key)
 		if node == nil {
 			return nil, nil
 		}
@@ -257,6 +305,8 @@ func (tree *RbTree) find(key RbKey) *rbNode {
 }
 
 func (tree *RbTree) Get(key RbKey) (interface{}, bool) {
+	tree.mutex.RLock()
+	defer tree.mutex.RUnlock()
 	if key != nil && tree.root != nil {
 		node := tree.find(key)
 		if node != nil {
@@ -291,6 +341,8 @@ func (tree *RbTree) insertNode(node *rbNode, key RbKey, value interface{}) *rbNo
 
 // Insert inserts the given key and value into the tree
 func (tree *RbTree) Insert(key RbKey, value interface{}) {
+	tree.mutex.Lock()
+	defer tree.mutex.Unlock()
 	if key != nil {
 		tree.version++
 		tree.root = tree.insertNode(tree.root, key, value)
@@ -345,6 +397,8 @@ func (tree *RbTree) Delete(key RbKey) {
 		// this is only needed to calculate count
 		return
 	}
+	tree.mutex.Lock()
+	defer tree.mutex.Unlock()
 
 	tree.version++
 	tree.count--
@@ -354,12 +408,71 @@ func (tree *RbTree) Delete(key RbKey) {
 	}
 }
 
-type Uint64Key uint64
+type OrderedMap struct {
+	m map[RbKey]interface{}
+	keys []RbKey
+}
+
+func NewOrderedMap() *OrderedMap {
+	return &OrderedMap{
+		m:    make(map[RbKey]interface{}),
+		keys: make([]RbKey, 0),
+	}
+}
+
+func (oMap *OrderedMap) Set(key RbKey, value interface{}) {
+	oMap.m[key] = value
+	oMap.keys = append(oMap.keys, key)
+}
+
+func (oMap *OrderedMap) Get(key RbKey) (interface{}, bool) {
+	value, ok := oMap.m[key]
+	return value, ok
+}
+
+func (oMap *OrderedMap) GetMap() map[RbKey]interface{} {
+	return oMap.m
+}
+
+func (oMap *OrderedMap) GetKeys() []RbKey {
+	return oMap.keys
+}
+
+func traverseAll(node *rbNode, denseMap *OrderedMap) {
+	if node == nil {
+		return
+	}
+
+	if node.left != nil {
+		traverseAll(node.left, denseMap)
+	}
+
+	denseMap.Set(node.key, node.value)
+
+	if node.right != nil {
+		traverseAll(node.right, denseMap)
+	}
+}
+
+func (tree *RbTree) GetDenseMap() *OrderedMap {
+	if tree.IsEmpty() {
+		return nil
+	}
+	tree.mutex.Lock()
+	defer tree.mutex.Unlock()
+
+	denseMap := NewOrderedMap()
+	traverseAll(tree.root, denseMap)
+	return denseMap
+}
+
+// TODO(squadrick): Replace RbTree API with int64 instead of RbKey interface
+type Int64Key int64
 
 // ComparedTo compares the given RbKey with its self
-func (ikey *Uint64Key) ComparedTo(key RbKey) KeyComparison {
-	key1 := uint64(*ikey)
-	key2 := uint64(*key.(*Uint64Key))
+func (ikey *Int64Key) ComparedTo(key RbKey) KeyComparison {
+	key1 := int64(*ikey)
+	key2 := int64(*key.(*Int64Key))
 	switch {
 	case key1 > key2:
 		return KeyIsGreater
