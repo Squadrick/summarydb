@@ -2,24 +2,13 @@ package window
 
 import (
 	"math"
+	"summarystore/summarydb/utils"
 	"testing"
 )
 
 const (
 	Multiplier = int64(2492)
 )
-
-func assertTrue(t *testing.T, a bool) {
-	if !a {
-		t.Fatalf("Expected true, got false")
-	}
-}
-
-func assertEqual(t *testing.T, a interface{}, b interface{}) {
-	if a != b {
-		t.Fatalf("Expected equal: %s != %s\n", a, b)
-	}
-}
 
 func TestGenericWindowing_GetFirstContainingTime(t *testing.T) {
 	expSeq := NewExponentialLengthsSequence(2)
@@ -33,11 +22,11 @@ func TestGenericWindowing_GetFirstContainingTime(t *testing.T) {
 		return value
 	}
 
-	assertEqual(t, int64(101), getTime(98, 99, 100))
-	assertEqual(t, int64(103), getTime(96, 99, 100))
-	assertEqual(t, int64(107), getTime(92, 99, 100))
-	assertEqual(t, int64(115), getTime(84, 99, 100))
-	assertEqual(t, int64(200), getTime(80, 100, 200))
+	utils.AssertEqual(t, int64(101), getTime(98, 99, 100))
+	utils.AssertEqual(t, int64(103), getTime(96, 99, 100))
+	utils.AssertEqual(t, int64(107), getTime(92, 99, 100))
+	utils.AssertEqual(t, int64(115), getTime(84, 99, 100))
+	utils.AssertEqual(t, int64(200), getTime(80, 100, 200))
 }
 
 type TestSeq struct {
@@ -57,9 +46,9 @@ func (seq *TestSeq) MaxWindowSize() int64 {
 func TestGenericWindowing_GetSizeOfFirstWindow(t *testing.T) {
 	window := NewGenericWindowing(NewExponentialLengthsSequence(2))
 
-	assertEqual(t, window.GetSizeOfFirstWindow(), int64(1))
+	utils.AssertEqual(t, window.GetSizeOfFirstWindow(), int64(1))
 	rp := NewGenericWindowing(&TestSeq{i: 1})
-	assertEqual(t, Multiplier, rp.GetSizeOfFirstWindow())
+	utils.AssertEqual(t, Multiplier, rp.GetSizeOfFirstWindow())
 }
 
 func TestGenericWindowing_GetWindowsCoveringUpto(t *testing.T) {
@@ -82,8 +71,8 @@ func TestGenericWindowing_GetWindowsCoveringUpto(t *testing.T) {
 		return true
 	}
 
-	assertTrue(t, arrayEqual(window.GetWindowsCoveringUpto(62), []int64{1, 2, 4, 8, 16}))
-	assertTrue(t, arrayEqual(window.GetWindowsCoveringUpto(63), []int64{1, 2, 4, 8, 16, 32}))
+	utils.AssertTrue(t, arrayEqual(window.GetWindowsCoveringUpto(62), []int64{1, 2, 4, 8, 16}))
+	utils.AssertTrue(t, arrayEqual(window.GetWindowsCoveringUpto(63), []int64{1, 2, 4, 8, 16, 32}))
 }
 
 func benchmarkGetWindowsCoveringUpto(input int, b *testing.B) {
