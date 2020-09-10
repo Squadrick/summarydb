@@ -133,6 +133,7 @@ func (pwin *PowerWindowing) GetFirstContainingTime(Tl, Tr, T int64) (int64, bool
 	if r <= Wr {
 		return T, true
 	} else {
+		// TODO(squadrick): Find case that hits this.
 		return T + Wr + 1 - l, true
 	}
 }
