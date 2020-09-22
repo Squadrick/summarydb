@@ -3,6 +3,7 @@ package operator
 import (
 	"summarydb/core"
 	"summarydb/protos"
+	"summarydb/stats"
 )
 
 type CountOp struct {
@@ -36,6 +37,26 @@ func (op *CountOp) EmptyQuery() *AggResult {
 	}
 }
 
-func (op *CountOp) Query(windows []core.SummaryWindow, t0 int64, t1 int64) *AggResult {
-	return op.EmptyQuery()
+func (op *CountOp) Query(windows []core.SummaryWindow,
+	landmarkWindows []core.LandmarkWindow,
+	t0 int64, t1 int64,
+	params *QueryParams) *AggResult {
+
+	bounds, meanvar := stats.GetSumStats(t0, t1,
+		windows,
+		landmarkWindows,
+		func(table *core.DataTable) float64 {
+			return table.Count.Value
+		})
+
+	ci := stats.ConvertStatsBoundsToCI(
+		bounds,
+		meanvar,
+		params.SDMultiplier,
+		params.ConfidenceLevel)
+
+	return &AggResult{
+		value: int64(ci.Mean),
+		error: (ci.LowerCI + ci.UpperCI) / 2.0,
+	}
 }
