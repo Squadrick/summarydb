@@ -41,6 +41,16 @@ func ConvertStatsBoundsToCI(bounds *Bounds, stats *Stats, sdMultiplier, confiden
 	ci := &CI{
 		Mean: stats.Mean,
 	}
+	probability := (1 + confidenceLevel) / 2
+	z := StdNormal.InvCDF(probability)
 
+	if math.IsInf(z, 0) {
+		ci.LowerCI = bounds.Lower
+		ci.UpperCI = bounds.Upper
+	} else {
+		sd := sdMultiplier * math.Sqrt(stats.Var)
+		ci.LowerCI = math.Max(ci.Mean-z*sd, bounds.Lower)
+		ci.UpperCI = math.Min(ci.Mean+z*sd, bounds.Lower)
+	}
 	return ci
 }
