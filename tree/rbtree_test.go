@@ -1,7 +1,7 @@
 package tree
 
 import (
-	"summarystore/summarydb/utils"
+	"summarydb/utils"
 	"testing"
 )
 

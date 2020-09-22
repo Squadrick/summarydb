@@ -1,6 +1,8 @@
-package summarydb
+package core
 
-import "fmt"
+import (
+	"fmt"
+)
 
 // Window holding a set of summary data structures.
 // SummaryDB stream = list of contiguous SummaryWindows
@@ -8,26 +10,28 @@ import "fmt"
 // Use int64 for window IDs, timestamps and count markers.
 // Valid values should be non-negative; use -1 for null.
 type SummaryWindow struct {
-	timeStart  int64
-	timeEnd    int64
-	countStart int64
-	countEnd   int64
+	TimeStart  int64
+	TimeEnd    int64
+	CountStart int64
+	CountEnd   int64
+	Data       *DataTable
 }
 
 func NewSummaryWindow(timeStart, timeEnd, countStart, countEnd int64) *SummaryWindow {
 	window := SummaryWindow{
-		timeStart:  timeStart,
-		timeEnd:    timeEnd,
-		countStart: countStart,
-		countEnd:   countEnd,
+		TimeStart:  timeStart,
+		TimeEnd:    timeEnd,
+		CountStart: countStart,
+		CountEnd:   countEnd,
+		Data:       NewDataTable(),
 	}
 	return &window
 }
 
 func (window SummaryWindow) String() string {
 	return fmt.Sprintf("<SummaryWindow: Time [%d, %d] Count [%d, %d]>",
-		window.timeStart,
-		window.timeEnd,
-		window.countStart,
-		window.countEnd)
+		window.TimeStart,
+		window.TimeEnd,
+		window.CountStart,
+		window.CountEnd)
 }

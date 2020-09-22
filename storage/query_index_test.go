@@ -1,7 +1,7 @@
 package storage
 
 import (
-	"summarystore/summarydb/utils"
+	"summarydb/utils"
 	"testing"
 )
 

@@ -17,7 +17,7 @@ package window
 
 import (
 	"math"
-	"summarystore/tree"
+	"summarydb/tree"
 )
 
 // S is the fixed size of the starting window

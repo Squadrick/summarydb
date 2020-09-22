@@ -15,7 +15,7 @@
 
 package storage
 
-import "summarystore/tree"
+import "summarydb/tree"
 
 // In-memory index over window time-starts.
 type QueryIndex struct {

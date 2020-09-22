@@ -15,7 +15,7 @@
 
 package window
 
-import "summarystore/tree"
+import "summarydb/tree"
 
 type GenericWindowing struct {
 	lengthSeq             LengthsSequence

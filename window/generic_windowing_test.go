@@ -2,7 +2,7 @@ package window
 
 import (
 	"math"
-	"summarystore/summarydb/utils"
+	"summarydb/utils"
 	"testing"
 )
 

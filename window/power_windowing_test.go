@@ -1,7 +1,7 @@
 package window
 
 import (
-	"summarystore/summarydb/utils"
+	"summarydb/utils"
 	"testing"
 )
 
