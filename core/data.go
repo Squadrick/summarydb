@@ -9,5 +9,7 @@ type DataTable struct {
 }
 
 func NewDataTable() *DataTable {
-	return &DataTable{}
+	return &DataTable{
+		Count: &CountData{},
+	}
 }
