@@ -25,3 +25,10 @@ struct ProtoSummaryWindow {
     ce @3 :Int64;
     opData @4 :DataTable;
 }
+
+struct ProtoLandmarkWindow {
+    ts @0 :Int64;
+    te @1 :Int64;
+    timestamps @2 :List(Int64);
+    values @3 :List(Float64);
+}

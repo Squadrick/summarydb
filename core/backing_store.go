@@ -116,3 +116,52 @@ func BytesToSummaryWindow(buf []byte) *SummaryWindow {
 	summaryWindow.Data.Max.Value = dataTableProto.Max()
 	return summaryWindow
 }
+
+func LandmarkWindowToBytes(window *LandmarkWindow) []byte {
+	msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+
+	landmarkWindowProto, err := protos.NewRootProtoLandmarkWindow(seg)
+	if err != nil {
+		return nil
+	}
+
+	landmarkWindowProto.SetTs(window.TimeStart)
+	landmarkWindowProto.SetTe(window.TimeEnd)
+
+	timestampsProto, _ := landmarkWindowProto.NewTimestamps(int32(len(window.Landmarks)))
+	valuesProto, _ := landmarkWindowProto.NewValues(int32(len(window.Landmarks)))
+
+	for i, landmark := range window.Landmarks {
+		timestampsProto.Set(i, landmark.Timestamp)
+		valuesProto.Set(i, landmark.Value)
+	}
+
+	buf, err := msg.Marshal()
+	if err != nil {
+		return nil
+	}
+
+	return buf
+}
+
+func BytesToLandmarkWindow(buf []byte) *LandmarkWindow {
+	msg, err := capnp.Unmarshal(buf)
+	if err != nil {
+		return nil
+	}
+	landmarkWindowProto, err := protos.ReadRootProtoLandmarkWindow(msg)
+	if err != nil {
+		return nil
+	}
+
+	landmarkWindow := NewLandmarkWindow(landmarkWindowProto.Ts())
+	timestampsProto, _ := landmarkWindowProto.Timestamps()
+	valuesProto, _ := landmarkWindowProto.Values()
+
+	for i := 0; i < valuesProto.Len(); i++ {
+		landmarkWindow.Insert(timestampsProto.At(i), valuesProto.At(i))
+	}
+
+	landmarkWindow.Close(landmarkWindowProto.Te())
+	return landmarkWindow
+}
