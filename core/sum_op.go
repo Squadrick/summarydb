@@ -21,7 +21,7 @@ func (op *SumOp) Apply(retData, aggData *DataTable, insertValue float64, ts int6
 
 func (op *SumOp) Merge(retData *DataTable, values []DataTable) {
 	for _, value := range values {
-		retData.Sum.Value += value.Count.Value
+		retData.Sum.Value += value.Sum.Value
 	}
 }
 
@@ -42,7 +42,7 @@ func (op *SumOp) Query(windows []SummaryWindow,
 		windows,
 		landmarkWindows,
 		func(table *DataTable) float64 {
-			return table.Max.Value
+			return table.Sum.Value
 		})
 
 	ci := stats.ConvertStatsBoundsToCI(
@@ -52,7 +52,7 @@ func (op *SumOp) Query(windows []SummaryWindow,
 		params.ConfidenceLevel)
 
 	aggData := NewDataTable()
-	aggData.Count.Value = ci.Mean
+	aggData.Sum.Value = ci.Mean
 
 	return &AggResult{
 		value: aggData,

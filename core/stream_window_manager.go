@@ -10,7 +10,7 @@ type StreamWindowManager struct {
 	summaryIndex  *storage.QueryIndex
 	landmarkIndex *storage.QueryIndex
 	operators     *OpSet
-	backingStore  *BackingStore
+	backingStore  BackingStore
 }
 
 func GetDataFromWindows(windows []SummaryWindow) []DataTable {
@@ -30,7 +30,7 @@ func NewStreamWindowManager(id int64, operatorNames []string) *StreamWindowManag
 	}
 }
 
-func (manager *StreamWindowManager) SetBackingStore(store *BackingStore) {
+func (manager *StreamWindowManager) SetBackingStore(store BackingStore) {
 	manager.backingStore = store
 }
 
@@ -65,7 +65,7 @@ func (manager *StreamWindowManager) GetSummaryWindowInRange(t0, t1 int64) []Summ
 
 	for _, id := range ids {
 		window := manager.GetSummaryWindow(id)
-		if window.TimeEnd < t0 {
+		if window.TimeEnd < t0 || window.TimeStart > t1 {
 			continue
 		}
 		summaryWindows = append(summaryWindows, *manager.GetSummaryWindow(id))
