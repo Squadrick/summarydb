@@ -55,10 +55,21 @@ func (index *QueryIndex) GetOverlappingWindowIDs(t0 int64, t1 int64) []int64 {
 	windows = append(windows, l.(int64))
 	index.tStarts.Map(func(key tree.RbKey, i interface{}) bool {
 		value := i.(int64)
-		if value > r.(int64) {
-			return true
-		} else if value > l.(int64) && value <= r.(int64) {
+		rvalue, ok := r.(int64)
+		// r can be nil. In this case, we consider it as +inf and
+		// keeping iterating till the end.
+		rcond := false
+		if !ok {
+			rcond = true
+		} else {
+			rcond = value <= rvalue
+		}
+
+		if value > l.(int64) && rcond {
 			windows = append(windows, value)
+			return false
+		} else if value > rvalue {
+			return true
 		}
 		return false
 	})

@@ -53,12 +53,12 @@ func TestStreamWindowManager_MergeSummaryWindows(t *testing.T) {
 		manager.InsertIntoSummaryWindow(summaryWindow, i*5, float64(2*i+1))
 		manager.PutSummaryWindow(summaryWindow)
 	}
-	middleSummaryWindows := manager.GetSummaryWindowInRange(1, 19)
+	middleSummaryWindows := manager.GetSummaryWindowInRange(1, 23)
 	manager.MergeSummaryWindows(middleSummaryWindows)
 	mergedWindow := middleSummaryWindows[0]
 
-	utils.AssertEqual(t, mergedWindow.TimeEnd, int64(19))
-	utils.AssertEqual(t, mergedWindow.Data.Count.Value, float64(4))
-	utils.AssertEqual(t, mergedWindow.Data.Max.Value, float64(7))
-	utils.AssertEqual(t, mergedWindow.Data.Sum.Value, float64(16))
+	utils.AssertEqual(t, mergedWindow.TimeEnd, int64(24))
+	utils.AssertEqual(t, mergedWindow.Data.Count.Value, float64(5))
+	utils.AssertEqual(t, mergedWindow.Data.Max.Value, float64(9))
+	utils.AssertEqual(t, mergedWindow.Data.Sum.Value, float64(25))
 }
