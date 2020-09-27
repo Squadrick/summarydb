@@ -8,31 +8,27 @@ import (
 
 type CountOp struct {
 	OpType protos.OpType
-	count  int64
 }
 
 func NewCountOp() *CountOp {
 	return &CountOp{
 		OpType: protos.OpType_count,
-		count:  0,
 	}
 }
 
-func (op *CountOp) Apply(value int64, ts int64) int64 {
-	return value + 1
+func (op *CountOp) Apply(retData, data *core.DataTable, ts int64) {
+	retData.Count.Value = data.Count.Value + 1
 }
 
-func (op *CountOp) Merge(values []int64) int64 {
-	sum := int64(0)
+func (op *CountOp) Merge(retData *core.DataTable, values []core.DataTable) {
 	for _, value := range values {
-		sum += value
+		retData.Count.Value += value.Count.Value
 	}
-	return sum
 }
 
 func (op *CountOp) EmptyQuery() *AggResult {
 	return &AggResult{
-		value: 0,
+		value: core.NewDataTable(),
 		error: 0,
 	}
 }
@@ -55,8 +51,11 @@ func (op *CountOp) Query(windows []core.SummaryWindow,
 		params.SDMultiplier,
 		params.ConfidenceLevel)
 
+	aggData := core.NewDataTable()
+	aggData.Count.Value = ci.Mean
+
 	return &AggResult{
-		value: int64(ci.Mean),
-		error: (ci.LowerCI + ci.UpperCI) / 2.0,
+		value: aggData,
+		error: ci.UpperCI - ci.LowerCI,
 	}
 }

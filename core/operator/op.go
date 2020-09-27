@@ -2,7 +2,6 @@ package operator
 
 import (
 	"summarydb/core"
-	"summarydb/protos"
 )
 
 type QueryParams struct {
@@ -11,15 +10,13 @@ type QueryParams struct {
 }
 
 type AggResult struct {
-	value int64
+	value *core.DataTable
 	error float64
 }
 
 type Op interface {
-	Apply(int64, int64) int64
-	Merge([]int64) int64
+	Apply(*core.DataTable, *core.DataTable)
+	Merge(*core.DataTable, []core.DataTable)
 	EmptyQuery() *AggResult
 	Query([]core.SummaryWindow, []core.LandmarkWindow, int64, int64, *QueryParams) *AggResult
-	Serialize(int64) protos.ProtoOperator
-	Deserialize(protos.ProtoOperator) int64
 }

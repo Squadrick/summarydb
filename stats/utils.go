@@ -50,7 +50,7 @@ func ConvertStatsBoundsToCI(bounds *Bounds, stats *Stats, sdMultiplier, confiden
 	} else {
 		sd := sdMultiplier * math.Sqrt(stats.Var)
 		ci.LowerCI = math.Max(ci.Mean-z*sd, bounds.Lower)
-		ci.UpperCI = math.Min(ci.Mean+z*sd, bounds.Lower)
+		ci.UpperCI = math.Min(ci.Mean+z*sd, bounds.Upper)
 	}
 	return ci
 }
