@@ -1,6 +1,10 @@
 package core
 
-import "strconv"
+import (
+	"strconv"
+	"summarydb/protos"
+	capnp "zombiezen.com/go/capnproto2"
+)
 
 type BackingStore interface {
 	Get(int64, int64) *SummaryWindow
@@ -16,6 +20,7 @@ func GetKey(a, b int64) string {
 	return strconv.Itoa(int(a)) + "-" + strconv.Itoa(int(b))
 }
 
+// --- MAIN MEMORY ---
 type MainMemoryBackingStore struct {
 	// populate info
 	summaryMap  map[string]*SummaryWindow
@@ -51,4 +56,63 @@ func (store *MainMemoryBackingStore) PutLandmark(streamID, windowID int64, windo
 
 func (store *MainMemoryBackingStore) DeleteLandmark(streamID, windowID int64) {
 	delete(store.landmarkMap, GetKey(streamID, windowID))
+}
+
+// --- DISK MEMORY ---
+
+func SummaryWindowToBytes(window *SummaryWindow) []byte {
+	msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+
+	summaryWindowProto, err := protos.NewRootProtoSummaryWindow(seg)
+	if err != nil {
+		return nil
+	}
+
+	summaryWindowProto.SetTs(window.TimeStart)
+	summaryWindowProto.SetTe(window.TimeEnd)
+	summaryWindowProto.SetCs(window.CountStart)
+	summaryWindowProto.SetCe(window.CountEnd)
+
+	dataTableProto, err := summaryWindowProto.NewOpData()
+	if err != nil {
+		return nil
+	}
+
+	dataTableProto.SetCount(window.Data.Count.Value)
+	dataTableProto.SetMax(window.Data.Max.Value)
+	dataTableProto.SetSum(window.Data.Sum.Value)
+
+	buf, err := msg.Marshal()
+	if err != nil {
+		return nil
+	}
+
+	return buf
+}
+
+func BytesToSummaryWindow(buf []byte) *SummaryWindow {
+	msg, err := capnp.Unmarshal(buf)
+	if err != nil {
+		return nil
+	}
+
+	summaryWindowProto, err := protos.ReadRootProtoSummaryWindow(msg)
+	if err != nil {
+		return nil
+	}
+
+	summaryWindow := NewSummaryWindow(
+		summaryWindowProto.Ts(),
+		summaryWindowProto.Te(),
+		summaryWindowProto.Cs(),
+		summaryWindowProto.Ce())
+	dataTableProto, err := summaryWindowProto.OpData()
+	if err != nil {
+		return summaryWindow
+	}
+
+	summaryWindow.Data.Sum.Value = dataTableProto.Sum()
+	summaryWindow.Data.Count.Value = dataTableProto.Count()
+	summaryWindow.Data.Max.Value = dataTableProto.Max()
+	return summaryWindow
 }
