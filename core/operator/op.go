@@ -15,7 +15,7 @@ type AggResult struct {
 }
 
 type Op interface {
-	Apply(*core.DataTable, *core.DataTable)
+	Apply(*core.DataTable, *core.DataTable, *core.DataTable, int64)
 	Merge(*core.DataTable, []core.DataTable)
 	EmptyQuery() *AggResult
 	Query([]core.SummaryWindow, []core.LandmarkWindow, int64, int64, *QueryParams) *AggResult

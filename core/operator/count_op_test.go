@@ -11,7 +11,7 @@ func TestCountOp_Apply(t *testing.T) {
 	data.Count.Value = 3
 
 	op := NewCountOp()
-	op.Apply(data, data, 0)
+	op.Apply(data, data, data, 0)
 
 	utils.AssertEqual(t, data.Count.Value, float64(4))
 }

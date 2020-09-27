@@ -1,15 +1,21 @@
 package core
 
-type CountData struct {
+import "math"
+
+type Scalar struct {
 	Value float64
 }
 
 type DataTable struct {
-	Count *CountData
+	Count *Scalar
+	Max   *Scalar
 }
 
 func NewDataTable() *DataTable {
 	return &DataTable{
-		Count: &CountData{},
+		Count: &Scalar{},
+		Max: &Scalar{
+			Value: -math.MaxFloat64,
+		},
 	}
 }

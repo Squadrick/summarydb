@@ -16,8 +16,8 @@ func NewCountOp() *CountOp {
 	}
 }
 
-func (op *CountOp) Apply(retData, data *core.DataTable, ts int64) {
-	retData.Count.Value = data.Count.Value + 1
+func (op *CountOp) Apply(retData, aggData, insertData *core.DataTable, ts int64) {
+	retData.Count.Value = aggData.Count.Value + 1
 }
 
 func (op *CountOp) Merge(retData *core.DataTable, values []core.DataTable) {
