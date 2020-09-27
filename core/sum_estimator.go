@@ -1,8 +1,6 @@
-package stats
+package core
 
-import (
-	"summarydb/core"
-)
+import "summarydb/stats"
 
 type WindowInfo struct {
 	Start   int64
@@ -22,21 +20,21 @@ func NewWindowInfo() *WindowInfo {
 	}
 }
 
-func (wi *WindowInfo) SetValues(window *core.SummaryWindow, value float64) {
+func (wi *WindowInfo) SetValues(window *SummaryWindow, value float64) {
 	wi.Start = window.TimeStart
 	wi.End = window.TimeEnd
 	wi.Sum = value
 }
 
 func (wi *WindowInfo) SetLengthAndOverlap(t0 int64, t1 int64) {
-	wi.Overlap = WindowOverlap(wi.Start, wi.End, t0, t1)
-	wi.Length = WindowLength(wi.Start, wi.End)
+	wi.Overlap = stats.WindowOverlap(wi.Start, wi.End, t0, t1)
+	wi.Length = stats.WindowLength(wi.Start, wi.End)
 }
 
 func GetSumStats(t0, t1 int64,
-	summaryWindows []core.SummaryWindow,
-	landmarkWindows []core.LandmarkWindow,
-	getData func(table *core.DataTable) float64) (*Bounds, *Stats) {
+	summaryWindows []SummaryWindow,
+	landmarkWindows []LandmarkWindow,
+	getData func(table *DataTable) float64) (*stats.Bounds, *stats.Stats) {
 	firstWindow := NewWindowInfo()
 	lastWindow := NewWindowInfo()
 	middleWindow := NewWindowInfo()
@@ -65,32 +63,32 @@ func GetSumStats(t0, t1 int64,
 	lastWindow.SetLengthAndOverlap(t0, t1)
 
 	for _, window := range landmarkWindows {
-		firstWindow.Length -= WindowOverlap(window.TimeStart, window.TimeEnd,
+		firstWindow.Length -= stats.WindowOverlap(window.TimeStart, window.TimeEnd,
 			firstWindow.Start, firstWindow.End)
-		firstWindow.Overlap -= WindowOverlap(window.TimeStart, window.TimeEnd,
+		firstWindow.Overlap -= stats.WindowOverlap(window.TimeStart, window.TimeEnd,
 			t0, firstWindow.End)
 
 		// We don't run the same checks on middle-window since the data overlapping
 		// with landmark windows is contained entirely within [t0, t1].
 
-		lastWindow.Length -= WindowOverlap(window.TimeStart, window.TimeEnd,
+		lastWindow.Length -= stats.WindowOverlap(window.TimeStart, window.TimeEnd,
 			lastWindow.Start, lastWindow.End)
-		lastWindow.Overlap -= WindowOverlap(window.TimeStart, window.TimeEnd,
+		lastWindow.Overlap -= stats.WindowOverlap(window.TimeStart, window.TimeEnd,
 			lastWindow.Start, t1)
 
 		for _, landmark := range window.Landmarks {
 			if t0 <= landmark.Timestamp && landmark.Timestamp <= t1 {
-				landmarkWindow.Sum += getData(landmark.Data)
+				landmarkWindow.Sum += landmark.Value
 			}
 		}
 	}
 
-	bounds := &Bounds{
+	bounds := &stats.Bounds{
 		Lower: 0,
 		Upper: 0,
 	}
 
-	stats := &Stats{
+	stats := &stats.Stats{
 		Mean: 0,
 		Var:  0,
 	}
@@ -103,7 +101,7 @@ func GetSumStats(t0, t1 int64,
 	return bounds, stats
 }
 
-func UpdateEstimate(bounds *Bounds, stats *Stats, info *WindowInfo) {
+func UpdateEstimate(bounds *stats.Bounds, stats *stats.Stats, info *WindowInfo) {
 	bounds.Upper += info.Sum
 	if info.Overlap == info.Length {
 		bounds.Lower += info.Sum

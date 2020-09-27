@@ -1,29 +1,25 @@
-package operator
+package core
 
 import (
-	"summarydb/core"
 	"summarydb/utils"
 	"testing"
 )
 
 func TestMaxOp_Apply(t *testing.T) {
-	data := core.NewDataTable()
+	data := NewDataTable()
 	data.Max.Value = 3
 
-	insert := core.NewDataTable()
-	insert.Max.Value = 5
-
 	op := NewMaxOp()
-	op.Apply(data, data, insert, 0)
+	op.Apply(data, data, 5.0, 0)
 
 	utils.AssertEqual(t, data.Max.Value, float64(5))
 }
 
 func TestMaxOp_Merge(t *testing.T) {
-	data := core.NewDataTable()
-	mergingData := make([]core.DataTable, 0)
+	data := NewDataTable()
+	mergingData := make([]DataTable, 0)
 	for i := 0; i < 5; i++ {
-		mergeData := core.NewDataTable()
+		mergeData := NewDataTable()
 		mergeData.Max.Value = float64(i)
 		mergingData = append(mergingData, *mergeData)
 	}

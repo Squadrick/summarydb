@@ -4,7 +4,7 @@ package core
 
 type Landmark struct {
 	Timestamp int64
-	Data      *DataTable
+	Value     float64
 }
 
 type LandmarkWindow struct {
@@ -21,10 +21,10 @@ func NewLandmarkWindow(timeStart int64) *LandmarkWindow {
 	}
 }
 
-func (landmarkWindow *LandmarkWindow) Insert(timestamp int64, data *DataTable) {
+func (landmarkWindow *LandmarkWindow) Insert(timestamp int64, value float64) {
 	landmarkWindow.Landmarks = append(landmarkWindow.Landmarks, Landmark{
 		Timestamp: timestamp,
-		Data:      data,
+		Value:     value,
 	})
 }
 

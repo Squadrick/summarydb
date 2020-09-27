@@ -1,7 +1,6 @@
-package operator
+package core
 
 import (
-	"summarydb/core"
 	"summarydb/protos"
 	"summarydb/stats"
 )
@@ -16,11 +15,11 @@ func NewSumOp() *SumOp {
 	}
 }
 
-func (op *SumOp) Apply(retData, aggData, insertData *core.DataTable, ts int64) {
-	retData.Sum.Value = aggData.Sum.Value + insertData.Sum.Value
+func (op *SumOp) Apply(retData, aggData *DataTable, insertValue float64, ts int64) {
+	retData.Sum.Value = aggData.Sum.Value + insertValue
 }
 
-func (op *SumOp) Merge(retData *core.DataTable, values []core.DataTable) {
+func (op *SumOp) Merge(retData *DataTable, values []DataTable) {
 	for _, value := range values {
 		retData.Sum.Value += value.Count.Value
 	}
@@ -28,21 +27,21 @@ func (op *SumOp) Merge(retData *core.DataTable, values []core.DataTable) {
 
 func (op *SumOp) EmptyQuery() *AggResult {
 	return &AggResult{
-		value: core.NewDataTable(),
+		value: NewDataTable(),
 		error: 0,
 	}
 }
 
 // TODO: Add stream statistics, and get SDMultiplier
-func (op *SumOp) Query(windows []core.SummaryWindow,
-	landmarkWindows []core.LandmarkWindow,
+func (op *SumOp) Query(windows []SummaryWindow,
+	landmarkWindows []LandmarkWindow,
 	t0 int64, t1 int64,
 	params *QueryParams) *AggResult {
 
-	bounds, meanvar := stats.GetSumStats(t0, t1,
+	bounds, meanvar := GetSumStats(t0, t1,
 		windows,
 		landmarkWindows,
-		func(table *core.DataTable) float64 {
+		func(table *DataTable) float64 {
 			return table.Max.Value
 		})
 
@@ -52,7 +51,7 @@ func (op *SumOp) Query(windows []core.SummaryWindow,
 		params.SDMultiplier,
 		params.ConfidenceLevel)
 
-	aggData := core.NewDataTable()
+	aggData := NewDataTable()
 	aggData.Count.Value = ci.Mean
 
 	return &AggResult{

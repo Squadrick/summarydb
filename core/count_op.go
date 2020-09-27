@@ -1,7 +1,6 @@
-package operator
+package core
 
 import (
-	"summarydb/core"
 	"summarydb/protos"
 	"summarydb/stats"
 )
@@ -16,11 +15,11 @@ func NewCountOp() *CountOp {
 	}
 }
 
-func (op *CountOp) Apply(retData, aggData, insertData *core.DataTable, ts int64) {
+func (op *CountOp) Apply(retData, aggData *DataTable, insertValue float64, ts int64) {
 	retData.Count.Value = aggData.Count.Value + 1
 }
 
-func (op *CountOp) Merge(retData *core.DataTable, values []core.DataTable) {
+func (op *CountOp) Merge(retData *DataTable, values []DataTable) {
 	for _, value := range values {
 		retData.Count.Value += value.Count.Value
 	}
@@ -28,20 +27,20 @@ func (op *CountOp) Merge(retData *core.DataTable, values []core.DataTable) {
 
 func (op *CountOp) EmptyQuery() *AggResult {
 	return &AggResult{
-		value: core.NewDataTable(),
+		value: NewDataTable(),
 		error: 0,
 	}
 }
 
-func (op *CountOp) Query(windows []core.SummaryWindow,
-	landmarkWindows []core.LandmarkWindow,
+func (op *CountOp) Query(windows []SummaryWindow,
+	landmarkWindows []LandmarkWindow,
 	t0 int64, t1 int64,
 	params *QueryParams) *AggResult {
 
-	bounds, meanvar := stats.GetSumStats(t0, t1,
+	bounds, meanvar := GetSumStats(t0, t1,
 		windows,
 		landmarkWindows,
-		func(table *core.DataTable) float64 {
+		func(table *DataTable) float64 {
 			return table.Count.Value
 		})
 
@@ -51,7 +50,7 @@ func (op *CountOp) Query(windows []core.SummaryWindow,
 		params.SDMultiplier,
 		params.ConfidenceLevel)
 
-	aggData := core.NewDataTable()
+	aggData := NewDataTable()
 	aggData.Count.Value = ci.Mean
 
 	return &AggResult{
