@@ -10,6 +10,7 @@ type StreamWindowManager struct {
 	summaryIndex  *storage.QueryIndex
 	landmarkIndex *storage.QueryIndex
 	operators     *OpSet
+	backingStore  *BackingStore
 }
 
 func GetDataFromWindows(windows []SummaryWindow) []DataTable {
@@ -29,8 +30,8 @@ func NewStreamWindowManager(id int64, operatorNames []string) *StreamWindowManag
 	}
 }
 
-func (manager *StreamWindowManager) SetBackingStore() {
-	// TODO
+func (manager *StreamWindowManager) SetBackingStore(store *BackingStore) {
+	manager.backingStore = store
 }
 
 // SUMMARY WINDOWS
@@ -55,8 +56,7 @@ func (manager *StreamWindowManager) InsertIntoSummaryWindow(window *SummaryWindo
 }
 
 func (manager *StreamWindowManager) GetSummaryWindow(swid int64) *SummaryWindow {
-	// return backingStore.Get(manager.id, swid)
-	return nil
+	return manager.backingStore.Get(manager.id, swid)
 }
 
 func (manager *StreamWindowManager) GetSummaryWindowInRange(t0, t1 int64) []SummaryWindow {
@@ -75,13 +75,13 @@ func (manager *StreamWindowManager) GetSummaryWindowInRange(t0, t1 int64) []Summ
 
 func (manager *StreamWindowManager) PutSummaryWindow(window *SummaryWindow) {
 	manager.summaryIndex.Add(window.TimeStart)
-	// backingStore.Put(manager, window.TimeStart, window)
+	manager.backingStore.Put(manager.id, window.TimeStart, window)
 }
 
 func (manager *StreamWindowManager) DeleteSummaryWindow(swid int64) {
 	// swid == window.TimeStart
 	manager.summaryIndex.Remove(swid)
-	// backingStore.Delete(manager.id, swid)
+	manager.backingStore.Delete(manager.id, swid)
 }
 
 func (manager *StreamWindowManager) NumSummaryWindows() int {
@@ -91,8 +91,7 @@ func (manager *StreamWindowManager) NumSummaryWindows() int {
 // LANDMARK WINDOWS
 
 func (manager *StreamWindowManager) GetLandmarkWindow(lwid int64) *LandmarkWindow {
-	// return backingStore.GetLandmark(manager.id, lwid)
-	return nil
+	return manager.backingStore.GetLandmark(manager.id, lwid)
 }
 
 func (manager *StreamWindowManager) GetLandmarkWindowInRange(t0, t1 int64) []LandmarkWindow {
@@ -111,7 +110,13 @@ func (manager *StreamWindowManager) GetLandmarkWindowInRange(t0, t1 int64) []Lan
 
 func (manager *StreamWindowManager) PutLandmarkWindow(window *LandmarkWindow) {
 	manager.landmarkIndex.Add(window.TimeStart)
-	// backingStore.PutLandmark(manager.id, window.TimeStart, window)
+	manager.backingStore.PutLandmark(manager.id, window.TimeStart, window)
+}
+
+func (manager *StreamWindowManager) DeleteLandmarkWindow(swid int64) {
+	// swid == window.TimeStart
+	manager.landmarkIndex.Remove(swid)
+	manager.backingStore.DeleteLandmark(manager.id, swid)
 }
 
 func (manager *StreamWindowManager) NumLandmarkWindows() int {
