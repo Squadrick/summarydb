@@ -1,6 +1,7 @@
 package core
 
 import (
+	"github.com/dgraph-io/ristretto"
 	"summarydb/protos"
 	"summarydb/storage"
 	capnp "zombiezen.com/go/capnproto2"
@@ -113,37 +114,66 @@ func BytesToLandmarkWindow(buf []byte) *LandmarkWindow {
 }
 
 type BackingStore struct {
-	backend storage.Backend
+	backend       storage.Backend
+	landmarkCache *ristretto.Cache
+	summaryCache  *ristretto.Cache
 }
 
 func NewBackingStore(backend storage.Backend) *BackingStore {
-	return &BackingStore{backend: backend}
+	landmarkCache, _ := ristretto.NewCache(&ristretto.Config{
+		NumCounters: 1e3,
+		MaxCost:     1 << 25,
+		BufferItems: 64,
+	})
+	summaryCache, _ := ristretto.NewCache(&ristretto.Config{
+		NumCounters: 1e6,
+		MaxCost:     1 << 28,
+		BufferItems: 64,
+	})
+
+	return &BackingStore{
+		backend:       backend,
+		landmarkCache: landmarkCache,
+		summaryCache:  summaryCache,
+	}
 }
 
 func (store *BackingStore) Get(streamID, windowID int64) *SummaryWindow {
+	window, found := store.summaryCache.Get(storage.GetKey(streamID, windowID))
+	if found {
+		return window.(*SummaryWindow)
+	}
 	buf := store.backend.Get(streamID, windowID)
 	return BytesToSummaryWindow(buf)
 }
 
 func (store *BackingStore) Put(streamID, windowID int64, window *SummaryWindow) {
+	store.summaryCache.Set(storage.GetKey(streamID, windowID), window, 1)
 	buf := SummaryWindowToBytes(window)
 	store.backend.Put(streamID, windowID, buf)
 }
 
 func (store *BackingStore) Delete(streamID, windowID int64) {
+	store.summaryCache.Del(storage.GetKey(streamID, windowID))
 	store.backend.Delete(streamID, windowID)
 }
 
 func (store *BackingStore) GetLandmark(streamID, windowID int64) *LandmarkWindow {
+	window, found := store.landmarkCache.Get(storage.GetKey(streamID, windowID))
+	if found {
+		return window.(*LandmarkWindow)
+	}
 	buf := store.backend.GetLandmark(streamID, windowID)
 	return BytesToLandmarkWindow(buf)
 }
 
 func (store *BackingStore) PutLandmark(streamID, windowID int64, window *LandmarkWindow) {
+	store.landmarkCache.Set(storage.GetKey(streamID, windowID), window, 1)
 	buf := LandmarkWindowToBytes(window)
 	store.backend.PutLandmark(streamID, windowID, buf)
 }
 
 func (store *BackingStore) DeleteLandmark(streamID, windowID int64) {
+	store.landmarkCache.Del(storage.GetKey(streamID, windowID))
 	store.backend.DeleteLandmark(streamID, windowID)
 }
