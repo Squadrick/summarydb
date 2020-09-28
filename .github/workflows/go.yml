@@ -26,6 +26,7 @@ jobs:
       run: |
         sudo apt install capnproto
         go get -v -t -d ./...
+        go get -u zombiezen.com/go/capnproto2/...
       
     - name: Build
       run: |
