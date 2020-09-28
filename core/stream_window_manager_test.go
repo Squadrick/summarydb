@@ -1,12 +1,15 @@
 package core
 
 import (
+	"summarydb/storage"
 	"summarydb/utils"
 	"testing"
 )
 
 func TestStreamWindowManager(t *testing.T) {
-	store := NewMainMemoryBackingStore()
+	backend := storage.NewInMemoryBackend()
+	store := NewBackingStore(backend)
+
 	manager := NewStreamWindowManager(0, []string{"max", "sum", "count"})
 	manager.SetBackingStore(store)
 
@@ -44,7 +47,9 @@ func TestStreamWindowManager(t *testing.T) {
 }
 
 func TestStreamWindowManager_MergeSummaryWindows(t *testing.T) {
-	store := NewMainMemoryBackingStore()
+	backend := storage.NewInMemoryBackend()
+	store := NewBackingStore(backend)
+
 	manager := NewStreamWindowManager(0, []string{"max", "sum", "count"})
 	manager.SetBackingStore(store)
 

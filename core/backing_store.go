@@ -1,64 +1,10 @@
 package core
 
 import (
-	"strconv"
 	"summarydb/protos"
+	"summarydb/storage"
 	capnp "zombiezen.com/go/capnproto2"
 )
-
-type BackingStore interface {
-	Get(int64, int64) *SummaryWindow
-	Put(int64, int64, *SummaryWindow)
-	Delete(int64, int64)
-
-	GetLandmark(int64, int64) *LandmarkWindow
-	PutLandmark(int64, int64, *LandmarkWindow)
-	DeleteLandmark(int64, int64)
-}
-
-func GetKey(a, b int64) string {
-	return strconv.Itoa(int(a)) + "-" + strconv.Itoa(int(b))
-}
-
-// --- MAIN MEMORY ---
-type MainMemoryBackingStore struct {
-	// populate info
-	summaryMap  map[string]*SummaryWindow
-	landmarkMap map[string]*LandmarkWindow
-}
-
-func NewMainMemoryBackingStore() *MainMemoryBackingStore {
-	return &MainMemoryBackingStore{
-		summaryMap:  make(map[string]*SummaryWindow),
-		landmarkMap: make(map[string]*LandmarkWindow),
-	}
-}
-
-func (store *MainMemoryBackingStore) Get(streamID, windowID int64) *SummaryWindow {
-	return store.summaryMap[GetKey(streamID, windowID)]
-}
-
-func (store *MainMemoryBackingStore) Put(streamID, windowID int64, window *SummaryWindow) {
-	store.summaryMap[GetKey(streamID, windowID)] = window
-}
-
-func (store *MainMemoryBackingStore) Delete(streamID, windowID int64) {
-	delete(store.summaryMap, GetKey(streamID, windowID))
-}
-
-func (store *MainMemoryBackingStore) GetLandmark(streamID, windowID int64) *LandmarkWindow {
-	return store.landmarkMap[GetKey(streamID, windowID)]
-}
-
-func (store *MainMemoryBackingStore) PutLandmark(streamID, windowID int64, window *LandmarkWindow) {
-	store.landmarkMap[GetKey(streamID, windowID)] = window
-}
-
-func (store *MainMemoryBackingStore) DeleteLandmark(streamID, windowID int64) {
-	delete(store.landmarkMap, GetKey(streamID, windowID))
-}
-
-// --- DISK MEMORY ---
 
 func SummaryWindowToBytes(window *SummaryWindow) []byte {
 	msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
@@ -164,4 +110,40 @@ func BytesToLandmarkWindow(buf []byte) *LandmarkWindow {
 
 	landmarkWindow.Close(landmarkWindowProto.Te())
 	return landmarkWindow
+}
+
+type BackingStore struct {
+	backend storage.Backend
+}
+
+func NewBackingStore(backend storage.Backend) *BackingStore {
+	return &BackingStore{backend: backend}
+}
+
+func (store *BackingStore) Get(streamID, windowID int64) *SummaryWindow {
+	buf := store.backend.Get(streamID, windowID)
+	return BytesToSummaryWindow(buf)
+}
+
+func (store *BackingStore) Put(streamID, windowID int64, window *SummaryWindow) {
+	buf := SummaryWindowToBytes(window)
+	store.backend.Put(streamID, windowID, buf)
+}
+
+func (store *BackingStore) Delete(streamID, windowID int64) {
+	store.backend.Delete(streamID, windowID)
+}
+
+func (store *BackingStore) GetLandmark(streamID, windowID int64) *LandmarkWindow {
+	buf := store.backend.GetLandmark(streamID, windowID)
+	return BytesToLandmarkWindow(buf)
+}
+
+func (store *BackingStore) PutLandmark(streamID, windowID int64, window *LandmarkWindow) {
+	buf := LandmarkWindowToBytes(window)
+	store.backend.PutLandmark(streamID, windowID, buf)
+}
+
+func (store *BackingStore) DeleteLandmark(streamID, windowID int64) {
+	store.backend.DeleteLandmark(streamID, windowID)
 }

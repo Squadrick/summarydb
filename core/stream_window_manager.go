@@ -10,7 +10,7 @@ type StreamWindowManager struct {
 	summaryIndex  *storage.QueryIndex
 	landmarkIndex *storage.QueryIndex
 	operators     *OpSet
-	backingStore  BackingStore
+	backingStore  *BackingStore
 }
 
 func GetDataFromWindows(windows []SummaryWindow) []DataTable {
@@ -30,7 +30,7 @@ func NewStreamWindowManager(id int64, operatorNames []string) *StreamWindowManag
 	}
 }
 
-func (manager *StreamWindowManager) SetBackingStore(store BackingStore) {
+func (manager *StreamWindowManager) SetBackingStore(store *BackingStore) {
 	manager.backingStore = store
 }
 
