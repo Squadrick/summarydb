@@ -24,7 +24,7 @@ jobs:
 
     - name: Get dependencies
       run: |
-        apt install capnproto
+        sudo apt install capnproto
         go get -v -t -d ./...
       
     - name: Build
