@@ -1,6 +1,7 @@
 package core
 
 import (
+	cmp "github.com/google/go-cmp/cmp"
 	"summarydb/utils"
 	"testing"
 )
@@ -12,16 +13,9 @@ func TestSummaryWindowSerialization(t *testing.T) {
 	window.Data.Count.Value = 14.14
 
 	buf := SummaryWindowToBytes(window)
-
 	newWindow := BytesToSummaryWindow(buf)
 
-	utils.AssertEqual(t, window.TimeStart, newWindow.TimeStart)
-	utils.AssertEqual(t, window.TimeEnd, newWindow.TimeEnd)
-	utils.AssertEqual(t, window.CountStart, newWindow.CountStart)
-	utils.AssertEqual(t, window.CountEnd, newWindow.CountEnd)
-	utils.AssertEqual(t, window.Data.Count.Value, newWindow.Data.Count.Value)
-	utils.AssertEqual(t, window.Data.Sum.Value, newWindow.Data.Sum.Value)
-	utils.AssertEqual(t, window.Data.Max.Value, newWindow.Data.Max.Value)
+	utils.AssertTrue(t, cmp.Equal(window, newWindow))
 }
 
 func TestLandmarkWindowSerialization(t *testing.T) {
@@ -34,11 +28,5 @@ func TestLandmarkWindowSerialization(t *testing.T) {
 	buf := LandmarkWindowToBytes(window)
 	newWindow := BytesToLandmarkWindow(buf)
 
-	utils.AssertEqual(t, window.TimeStart, newWindow.TimeStart)
-	utils.AssertEqual(t, window.TimeEnd, newWindow.TimeEnd)
-
-	for i, landmark := range window.Landmarks {
-		utils.AssertEqual(t, landmark.Timestamp, newWindow.Landmarks[i].Timestamp)
-		utils.AssertEqual(t, landmark.Value, newWindow.Landmarks[i].Value)
-	}
+	utils.AssertTrue(t, cmp.Equal(window, newWindow))
 }
