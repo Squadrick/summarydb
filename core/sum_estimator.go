@@ -88,17 +88,17 @@ func GetSumStats(t0, t1 int64,
 		Upper: 0,
 	}
 
-	stats := &stats.Stats{
+	statistics := &stats.Stats{
 		Mean: 0,
 		Var:  0,
 	}
 
-	UpdateEstimate(bounds, stats, landmarkWindow)
-	UpdateEstimate(bounds, stats, firstWindow)
-	UpdateEstimate(bounds, stats, middleWindow)
-	UpdateEstimate(bounds, stats, lastWindow)
+	UpdateEstimate(bounds, statistics, landmarkWindow)
+	UpdateEstimate(bounds, statistics, firstWindow)
+	UpdateEstimate(bounds, statistics, middleWindow)
+	UpdateEstimate(bounds, statistics, lastWindow)
 
-	return bounds, stats
+	return bounds, statistics
 }
 
 func UpdateEstimate(bounds *stats.Bounds, stats *stats.Stats, info *WindowInfo) {
