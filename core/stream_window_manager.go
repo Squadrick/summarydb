@@ -74,12 +74,11 @@ func (manager *StreamWindowManager) GetSummaryWindowInRange(t0, t1 int64) []Summ
 }
 
 func (manager *StreamWindowManager) PutSummaryWindow(window *SummaryWindow) {
-	manager.summaryIndex.Add(window.TimeStart)
-	manager.backingStore.Put(manager.id, window.TimeStart, window)
+	manager.summaryIndex.Add(window.Id())
+	manager.backingStore.Put(manager.id, window.Id(), window)
 }
 
 func (manager *StreamWindowManager) DeleteSummaryWindow(swid int64) {
-	// swid == window.TimeStart
 	manager.summaryIndex.Remove(swid)
 	manager.backingStore.Delete(manager.id, swid)
 }
@@ -109,12 +108,11 @@ func (manager *StreamWindowManager) GetLandmarkWindowInRange(t0, t1 int64) []Lan
 }
 
 func (manager *StreamWindowManager) PutLandmarkWindow(window *LandmarkWindow) {
-	manager.landmarkIndex.Add(window.TimeStart)
-	manager.backingStore.PutLandmark(manager.id, window.TimeStart, window)
+	manager.landmarkIndex.Add(window.Id())
+	manager.backingStore.PutLandmark(manager.id, window.Id(), window)
 }
 
 func (manager *StreamWindowManager) DeleteLandmarkWindow(swid int64) {
-	// swid == window.TimeStart
 	manager.landmarkIndex.Remove(swid)
 	manager.backingStore.DeleteLandmark(manager.id, swid)
 }

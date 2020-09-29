@@ -14,10 +14,8 @@ type DataTable struct {
 
 func NewDataTable() *DataTable {
 	return &DataTable{
-		Count: &Scalar{},
-		Sum:   &Scalar{},
-		Max: &Scalar{
-			Value: -math.MaxFloat64,
-		},
+		Count: &Scalar{Value: 0.0},
+		Sum:   &Scalar{Value: 0.0},
+		Max:   &Scalar{Value: -math.MaxFloat64},
 	}
 }

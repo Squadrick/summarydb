@@ -21,13 +21,17 @@ func NewLandmarkWindow(timeStart int64) *LandmarkWindow {
 	}
 }
 
-func (landmarkWindow *LandmarkWindow) Insert(timestamp int64, value float64) {
-	landmarkWindow.Landmarks = append(landmarkWindow.Landmarks, Landmark{
+func (window *LandmarkWindow) Id() int64 {
+	return window.TimeStart
+}
+
+func (window *LandmarkWindow) Insert(timestamp int64, value float64) {
+	window.Landmarks = append(window.Landmarks, Landmark{
 		Timestamp: timestamp,
 		Value:     value,
 	})
 }
 
-func (landmarkWindow *LandmarkWindow) Close(timestamp int64) {
-	landmarkWindow.TimeEnd = timestamp
+func (window *LandmarkWindow) Close(timestamp int64) {
+	window.TimeEnd = timestamp
 }

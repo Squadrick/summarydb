@@ -14,6 +14,8 @@ type Backend interface {
 	GetLandmark(int64, int64) []byte
 	PutLandmark(int64, int64, []byte)
 	DeleteLandmark(int64, int64)
+
+	Close()
 }
 
 type InMemoryBackend struct {
@@ -50,4 +52,9 @@ func (backend *InMemoryBackend) PutLandmark(streamID, windowID int64, buf []byte
 
 func (backend *InMemoryBackend) DeleteLandmark(streamID, windowID int64) {
 	delete(backend.landmarkMap, GetKey(streamID, windowID))
+}
+
+func (backend *InMemoryBackend) Close() {
+	backend.summaryMap = nil
+	backend.landmarkMap = nil
 }

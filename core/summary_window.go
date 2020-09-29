@@ -28,6 +28,10 @@ func NewSummaryWindow(timeStart, timeEnd, countStart, countEnd int64) *SummaryWi
 	return &window
 }
 
+func (window *SummaryWindow) Id() int64 {
+	return window.TimeStart
+}
+
 func (window SummaryWindow) String() string {
 	return fmt.Sprintf("<SummaryWindow: Time [%d, %d] Count [%d, %d]>",
 		window.TimeStart,

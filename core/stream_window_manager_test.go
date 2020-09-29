@@ -6,8 +6,7 @@ import (
 	"testing"
 )
 
-func TestStreamWindowManager(t *testing.T) {
-	backend := storage.NewInMemoryBackend()
+func testStreamWindowManager(t *testing.T, backend storage.Backend) {
 	store := NewBackingStore(backend)
 
 	manager := NewStreamWindowManager(0, []string{"max", "sum", "count"})
@@ -46,8 +45,20 @@ func TestStreamWindowManager(t *testing.T) {
 	utils.AssertEqual(t, manager.NumLandmarkWindows(), 1)
 }
 
-func TestStreamWindowManager_MergeSummaryWindows(t *testing.T) {
+func TestStreamWindowManager_InMemory(t *testing.T) {
 	backend := storage.NewInMemoryBackend()
+	defer backend.Close()
+	testStreamWindowManager(t, backend)
+}
+
+func TestStreamWindowManager_Badger(t *testing.T) {
+	config := storage.TestBadgerBackendConfig()
+	backend := storage.NewBadgerBacked(config)
+	defer backend.Close()
+	testStreamWindowManager(t, backend)
+}
+
+func testStreamWindowManagerMerge(t *testing.T, backend storage.Backend) {
 	store := NewBackingStore(backend)
 
 	manager := NewStreamWindowManager(0, []string{"max", "sum", "count"})
@@ -66,4 +77,17 @@ func TestStreamWindowManager_MergeSummaryWindows(t *testing.T) {
 	utils.AssertEqual(t, mergedWindow.Data.Count.Value, float64(5))
 	utils.AssertEqual(t, mergedWindow.Data.Max.Value, float64(9))
 	utils.AssertEqual(t, mergedWindow.Data.Sum.Value, float64(25))
+}
+
+func TestStreamWindowManagerMerge_InMemory(t *testing.T) {
+	backend := storage.NewInMemoryBackend()
+	defer backend.Close()
+	testStreamWindowManagerMerge(t, backend)
+}
+
+func TestStreamWindowManagerMerge_Badger(t *testing.T) {
+	config := storage.TestBadgerBackendConfig()
+	backend := storage.NewBadgerBacked(config)
+	defer backend.Close()
+	testStreamWindowManagerMerge(t, backend)
 }
