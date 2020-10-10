@@ -44,9 +44,8 @@ type Backend interface {
 	GetLandmark(int64, int64) []byte
 	PutLandmark(int64, int64, []byte)
 	DeleteLandmark(int64, int64)
-	//
-	//IterateSummaryIndex(int64, func(int64))
-	//IterateLandmarkIndex(int64, func(int64))
+
+	IterateIndex(int64, func(int64), bool)
 
 	Close()
 }
@@ -90,4 +89,21 @@ func (backend *InMemoryBackend) DeleteLandmark(streamID, windowID int64) {
 func (backend *InMemoryBackend) Close() {
 	backend.summaryMap = nil
 	backend.landmarkMap = nil
+}
+
+func (backend *InMemoryBackend) IterateIndex(streamID int64, lambda func(int64), landmark bool) {
+	var iterMap map[string][]byte
+	if landmark {
+		iterMap = backend.landmarkMap
+	} else {
+		iterMap = backend.summaryMap
+	}
+
+	for k := range iterMap {
+		buf := []byte(k)
+		if GetStreamIDFromKey(buf) != streamID {
+			continue
+		}
+		lambda(GetWindowIDFromKey(buf))
+	}
 }

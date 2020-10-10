@@ -108,3 +108,7 @@ func (backend *BadgerBackend) DeleteLandmark(streamID, windowID int64) {
 	key := GetKey(true, streamID, windowID)
 	backend.txnDelete(key)
 }
+
+func (backend *BadgerBackend) IterateIndex(streamID int64, lambda func(int64), landmark bool) {
+	return
+}
