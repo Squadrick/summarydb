@@ -110,5 +110,16 @@ func (backend *BadgerBackend) DeleteLandmark(streamID, windowID int64) {
 }
 
 func (backend *BadgerBackend) IterateIndex(streamID int64, lambda func(int64), landmark bool) {
-	return
+	prefix := GetStreamLandmarkSegment(landmark, streamID)
+	iterOpts := badger.IteratorOptions{Prefix: prefix}
+	_ = backend.db.View(func(txn *badger.Txn) error {
+		iter := txn.NewIterator(iterOpts)
+		defer iter.Close()
+
+		for iter.Seek(nil); iter.Valid(); iter.Next() {
+			item := iter.Item()
+			lambda(GetWindowIDFromKey(item.Key()))
+		}
+		return nil
+	})
 }

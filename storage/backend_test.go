@@ -5,8 +5,7 @@ import (
 	"testing"
 )
 
-func TestInMemoryBackend_IterateIndex(t *testing.T) {
-	backend := NewInMemoryBackend()
+func testIterateIndex(t *testing.T, backend Backend) {
 	backend.Put(1, 1, nil)
 	backend.Put(1, 2, nil)
 	backend.Put(2, 3, nil)
@@ -42,4 +41,9 @@ func TestInMemoryBackend_IterateIndex(t *testing.T) {
 	initIndex()
 	backend.IterateIndex(2, lambda, true)
 	assert.Empty(t, index)
+}
+
+func TestInMemoryBackend_IterateIndex(t *testing.T) {
+	backend := NewInMemoryBackend()
+	testIterateIndex(t, backend)
 }

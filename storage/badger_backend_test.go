@@ -43,3 +43,9 @@ func TestBadgerBackend_Summary(t *testing.T) {
 
 	assert.Equal(t, window, dbWindow)
 }
+
+func TestBadgerBackend_IterateIndex(t *testing.T) {
+	testConfig := TestBadgerBackendConfig()
+	badger := NewBadgerBacked(testConfig)
+	testIterateIndex(t, badger)
+}

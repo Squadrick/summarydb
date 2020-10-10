@@ -4,6 +4,17 @@ import (
 	"encoding/binary"
 )
 
+func GetStreamLandmarkSegment(landmark bool, streamID int64) []byte {
+	buf := make([]byte, 9)
+	binary.LittleEndian.PutUint64(buf[:8], uint64(streamID))
+	if landmark {
+		buf[8] = 1
+	} else {
+		buf[8] = 0
+	}
+	return buf
+}
+
 func GetKey(landmark bool, streamID, windowID int64) []byte {
 	buf := make([]byte, 17)
 
