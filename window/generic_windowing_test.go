@@ -1,8 +1,8 @@
 package window
 
 import (
+	"github.com/stretchr/testify/assert"
 	"math"
-	"summarydb/utils"
 	"testing"
 )
 
@@ -22,11 +22,11 @@ func TestGenericWindowing_GetFirstContainingTime(t *testing.T) {
 		return value
 	}
 
-	utils.AssertEqual(t, int64(101), getTime(98, 99, 100))
-	utils.AssertEqual(t, int64(103), getTime(96, 99, 100))
-	utils.AssertEqual(t, int64(107), getTime(92, 99, 100))
-	utils.AssertEqual(t, int64(115), getTime(84, 99, 100))
-	utils.AssertEqual(t, int64(200), getTime(80, 100, 200))
+	assert.Equal(t, int64(101), getTime(98, 99, 100))
+	assert.Equal(t, int64(103), getTime(96, 99, 100))
+	assert.Equal(t, int64(107), getTime(92, 99, 100))
+	assert.Equal(t, int64(115), getTime(84, 99, 100))
+	assert.Equal(t, int64(200), getTime(80, 100, 200))
 }
 
 type TestSeq struct {
@@ -46,33 +46,16 @@ func (seq *TestSeq) MaxWindowSize() int64 {
 func TestGenericWindowing_GetSizeOfFirstWindow(t *testing.T) {
 	window := NewGenericWindowing(NewExponentialLengthsSequence(2))
 
-	utils.AssertEqual(t, window.GetSizeOfFirstWindow(), int64(1))
+	assert.Equal(t, window.GetSizeOfFirstWindow(), int64(1))
 	rp := NewGenericWindowing(&TestSeq{i: 1})
-	utils.AssertEqual(t, Multiplier, rp.GetSizeOfFirstWindow())
+	assert.Equal(t, Multiplier, rp.GetSizeOfFirstWindow())
 }
 
 func TestGenericWindowing_GetWindowsCoveringUpto(t *testing.T) {
 	window := NewGenericWindowing(NewExponentialLengthsSequence(2))
 
-	arrayEqual := func(a, b []int64) bool {
-		if (a == nil) != (b == nil) {
-			return false
-		}
-
-		if len(a) != len(b) {
-			return false
-		}
-
-		for i := range a {
-			if a[i] != b[i] {
-				return false
-			}
-		}
-		return true
-	}
-
-	utils.AssertTrue(t, arrayEqual(window.GetWindowsCoveringUpto(62), []int64{1, 2, 4, 8, 16}))
-	utils.AssertTrue(t, arrayEqual(window.GetWindowsCoveringUpto(63), []int64{1, 2, 4, 8, 16, 32}))
+	assert.Equal(t, window.GetWindowsCoveringUpto(62), []int64{1, 2, 4, 8, 16})
+	assert.Equal(t, window.GetWindowsCoveringUpto(63), []int64{1, 2, 4, 8, 16, 32})
 }
 
 func benchmarkGetWindowsCoveringUpto(input int, b *testing.B) {

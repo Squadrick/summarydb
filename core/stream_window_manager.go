@@ -34,6 +34,12 @@ func (manager *StreamWindowManager) SetBackingStore(store *BackingStore) {
 	manager.backingStore = store
 }
 
+func (manager *StreamWindowManager) PrimeUp() {
+	PopulateIndex(manager.backingStore.backend,
+		manager.summaryIndex,
+		manager.landmarkIndex)
+}
+
 // SUMMARY WINDOWS
 
 func (manager *StreamWindowManager) MergeSummaryWindows(summaryWindows []SummaryWindow) {

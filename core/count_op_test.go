@@ -1,7 +1,7 @@
 package core
 
 import (
-	"summarydb/utils"
+	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
@@ -12,7 +12,7 @@ func TestCountOp_Apply(t *testing.T) {
 	op := NewCountOp()
 	op.Apply(data, data, 0.0, 0)
 
-	utils.AssertEqual(t, data.Count.Value, float64(4))
+	assert.Equal(t, data.Count.Value, float64(4))
 }
 
 func TestCountOp_Merge(t *testing.T) {
@@ -27,7 +27,7 @@ func TestCountOp_Merge(t *testing.T) {
 	op := NewCountOp()
 	op.Merge(data, mergingData)
 
-	utils.AssertEqual(t, data.Count.Value, float64(10))
+	assert.Equal(t, data.Count.Value, float64(10))
 }
 
 func TestCountOp_Query(t *testing.T) {
@@ -62,6 +62,6 @@ func TestCountOp_Query(t *testing.T) {
 	}
 
 	agg := op.Query(summaryWindows, landmarkWindows, 1, 21, queryParams)
-	utils.AssertEqual(t, agg.value.Count.Value, 6.9)
-	utils.AssertClose(t, agg.error, 9.442857e-1, 1e-7)
+	assert.InEpsilonf(t, agg.value.Count.Value, 6.9, 1e-6, "Count value")
+	assert.InEpsilon(t, agg.error, 9.442857e-1, 1e-7, "Error value")
 }

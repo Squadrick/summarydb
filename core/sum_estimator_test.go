@@ -1,7 +1,7 @@
 package core
 
 import (
-	"summarydb/utils"
+	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
@@ -21,10 +21,10 @@ func TestGetSumStats_NoLandmarks(t *testing.T) {
 
 	bounds, stats := GetSumStats(3, 21, summaryWindows, landmarkWindows, getValue)
 
-	utils.AssertEqual(t, bounds.Lower, 3.0)
-	utils.AssertEqual(t, bounds.Upper, 5.0)
-	utils.AssertEqual(t, stats.Mean, 3.8)
-	utils.AssertEqual(t, stats.Var, 0.48)
+	assert.Equal(t, bounds.Lower, 3.0)
+	assert.Equal(t, bounds.Upper, 5.0)
+	assert.Equal(t, stats.Mean, 3.8)
+	assert.Equal(t, stats.Var, 0.48)
 }
 
 func TestGetSumStats_Landmarks(t *testing.T) {
@@ -54,8 +54,8 @@ func TestGetSumStats_Landmarks(t *testing.T) {
 
 	bounds, stats := GetSumStats(1, 21, summaryWindows, landmarkWindows, getValue)
 
-	utils.AssertEqual(t, bounds.Lower, 6.0)
-	utils.AssertEqual(t, bounds.Upper, 8.0)
-	utils.AssertEqual(t, stats.Mean, 6.9)
-	utils.AssertEqual(t, stats.Var, 0.49)
+	assert.Equal(t, bounds.Lower, 6.0)
+	assert.Equal(t, bounds.Upper, 8.0)
+	assert.Equal(t, stats.Mean, 6.9)
+	assert.Equal(t, stats.Var, 0.49)
 }

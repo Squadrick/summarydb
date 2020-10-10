@@ -1,9 +1,39 @@
 package storage
 
-import "strconv"
+import (
+	"encoding/binary"
+)
 
-func GetKey(a, b int64) string {
-	return strconv.Itoa(int(a)) + "-" + strconv.Itoa(int(b))
+func GetKey(landmark bool, streamID, windowID int64) []byte {
+	buf := make([]byte, 17)
+
+	// <8-bits stream ID> <1-bit for landmark> <8-bits for window ID>
+	binary.LittleEndian.PutUint64(buf[:8], uint64(streamID))
+	if landmark {
+		buf[8] = 1
+	} else {
+		buf[8] = 0
+	}
+	binary.LittleEndian.PutUint64(buf[9:], uint64(windowID))
+
+	return buf
+}
+
+func GetStreamIDFromKey(buf []byte) int64 {
+	return int64(binary.LittleEndian.Uint64(buf[:8]))
+}
+
+func GetWindowIDFromKey(buf []byte) int64 {
+	return int64(binary.LittleEndian.Uint64(buf[9:]))
+}
+
+func GetLandmarkFromKey(buf []byte) bool {
+	lBit := buf[8]
+	if lBit == 1 {
+		return true
+	} else {
+		return false
+	}
 }
 
 type Backend interface {
@@ -14,6 +44,9 @@ type Backend interface {
 	GetLandmark(int64, int64) []byte
 	PutLandmark(int64, int64, []byte)
 	DeleteLandmark(int64, int64)
+	//
+	//IterateSummaryIndex(int64, func(int64))
+	//IterateLandmarkIndex(int64, func(int64))
 
 	Close()
 }
@@ -31,27 +64,27 @@ func NewInMemoryBackend() *InMemoryBackend {
 }
 
 func (backend *InMemoryBackend) Get(streamID, windowID int64) []byte {
-	return backend.summaryMap[GetKey(streamID, windowID)]
+	return backend.summaryMap[string(GetKey(false, streamID, windowID))]
 }
 
 func (backend *InMemoryBackend) Put(streamID, windowID int64, buf []byte) {
-	backend.summaryMap[GetKey(streamID, windowID)] = buf
+	backend.summaryMap[string(GetKey(false, streamID, windowID))] = buf
 }
 
 func (backend *InMemoryBackend) Delete(streamID, windowID int64) {
-	delete(backend.summaryMap, GetKey(streamID, windowID))
+	delete(backend.summaryMap, string(GetKey(false, streamID, windowID)))
 }
 
 func (backend *InMemoryBackend) GetLandmark(streamID, windowID int64) []byte {
-	return backend.landmarkMap[GetKey(streamID, windowID)]
+	return backend.landmarkMap[string(GetKey(true, streamID, windowID))]
 }
 
 func (backend *InMemoryBackend) PutLandmark(streamID, windowID int64, buf []byte) {
-	backend.landmarkMap[GetKey(streamID, windowID)] = buf
+	backend.landmarkMap[string(GetKey(true, streamID, windowID))] = buf
 }
 
 func (backend *InMemoryBackend) DeleteLandmark(streamID, windowID int64) {
-	delete(backend.landmarkMap, GetKey(streamID, windowID))
+	delete(backend.landmarkMap, string(GetKey(true, streamID, windowID)))
 }
 
 func (backend *InMemoryBackend) Close() {

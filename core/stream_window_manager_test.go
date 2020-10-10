@@ -1,8 +1,8 @@
 package core
 
 import (
+	"github.com/stretchr/testify/assert"
 	"summarydb/storage"
-	"summarydb/utils"
 	"testing"
 )
 
@@ -17,7 +17,7 @@ func testStreamWindowManager(t *testing.T, backend storage.Backend) {
 		manager.InsertIntoSummaryWindow(summaryWindow, i*5, float64(i))
 		manager.PutSummaryWindow(summaryWindow)
 	}
-	utils.AssertEqual(t, manager.NumSummaryWindows(), 5)
+	assert.Equal(t, manager.NumSummaryWindows(), 5)
 
 	for i := int64(0); i < 3; i++ {
 		landmarkWindow := NewLandmarkWindow(3 * i)
@@ -25,24 +25,24 @@ func testStreamWindowManager(t *testing.T, backend storage.Backend) {
 		landmarkWindow.Close(3*i + 2)
 		manager.PutLandmarkWindow(landmarkWindow)
 	}
-	utils.AssertEqual(t, manager.NumLandmarkWindows(), 3)
+	assert.Equal(t, manager.NumLandmarkWindows(), 3)
 
 	middleSummaryWindows := manager.GetSummaryWindowInRange(6, 16)
-	utils.AssertEqual(t, len(middleSummaryWindows), 3)
+	assert.Equal(t, len(middleSummaryWindows), 3)
 
 	for _, m := range middleSummaryWindows {
-		utils.AssertTrue(t, m.TimeEnd > 5)
-		utils.AssertTrue(t, m.TimeStart < 20)
+		assert.True(t, m.TimeEnd > 5)
+		assert.True(t, m.TimeEnd < 20)
 		manager.DeleteSummaryWindow(m.TimeStart)
 	}
-	utils.AssertEqual(t, manager.NumSummaryWindows(), 2)
+	assert.Equal(t, manager.NumSummaryWindows(), 2)
 
 	middleLandmarkWindows := manager.GetLandmarkWindowInRange(1, 3)
-	utils.AssertEqual(t, len(middleLandmarkWindows), 2)
+	assert.Equal(t, len(middleLandmarkWindows), 2)
 	for _, m := range middleLandmarkWindows {
 		manager.DeleteLandmarkWindow(m.TimeStart)
 	}
-	utils.AssertEqual(t, manager.NumLandmarkWindows(), 1)
+	assert.Equal(t, manager.NumLandmarkWindows(), 1)
 }
 
 func TestStreamWindowManager_InMemory(t *testing.T) {
@@ -73,10 +73,10 @@ func testStreamWindowManagerMerge(t *testing.T, backend storage.Backend) {
 	manager.MergeSummaryWindows(middleSummaryWindows)
 	mergedWindow := middleSummaryWindows[0]
 
-	utils.AssertEqual(t, mergedWindow.TimeEnd, int64(24))
-	utils.AssertEqual(t, mergedWindow.Data.Count.Value, float64(5))
-	utils.AssertEqual(t, mergedWindow.Data.Max.Value, float64(9))
-	utils.AssertEqual(t, mergedWindow.Data.Sum.Value, float64(25))
+	assert.Equal(t, mergedWindow.TimeEnd, int64(24))
+	assert.Equal(t, mergedWindow.Data.Count.Value, float64(5))
+	assert.Equal(t, mergedWindow.Data.Max.Value, float64(9))
+	assert.Equal(t, mergedWindow.Data.Sum.Value, float64(25))
 }
 
 func TestStreamWindowManagerMerge_InMemory(t *testing.T) {

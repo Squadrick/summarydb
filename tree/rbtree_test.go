@@ -1,7 +1,7 @@
 package tree
 
 import (
-	"summarydb/utils"
+	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
@@ -28,40 +28,40 @@ func TestInsertDeleteAndGet(t *testing.T) {
 		tree.Insert(&key, 10+i)
 	}
 
-	utils.AssertEqual(t, tree.Count(), 100)
+	assert.Equal(t, tree.Count(), 100)
 
 	tree.Insert(&zeroKey, 999)
 
 	_, minValue := tree.Min()
-	utils.AssertEqual(t, minValue.(int), 999)
+	assert.Equal(t, minValue.(int), 999)
 	_, maxValue := tree.Max()
-	utils.AssertEqual(t, maxValue.(int), 109)
+	assert.Equal(t, maxValue.(int), 109)
 
 	fiftyKey := Int64Key(50)
 	tree.Delete(&fiftyKey)
 
 	_, floorVal := tree.Floor(&fiftyKey)
-	utils.AssertEqual(t, floorVal.(int), 59)
+	assert.Equal(t, floorVal.(int), 59)
 	_, ceilVal := tree.Ceiling(&fiftyKey)
-	utils.AssertEqual(t, ceilVal.(int), 61)
+	assert.Equal(t, ceilVal.(int), 61)
 
 	tree.Insert(&fiftyKey, 60)
 	_, higherVal := tree.Higher(&fiftyKey)
-	utils.AssertEqual(t, higherVal.(int), 61)
+	assert.Equal(t, higherVal.(int), 61)
 
 	count := 0
 	for i := 1; i < 150; i++ {
 		key := Int64Key(i)
 		if value, ok := tree.Get(&key); ok {
-			utils.AssertEqual(t, value.(int), i+10)
+			assert.Equal(t, value.(int), i+10)
 			count++
 		}
 	}
-	utils.AssertEqual(t, count, 99) // all but 0
+	assert.Equal(t, count, 99) // all but 0
 
 	denseMap := tree.GetDenseMap()
 	keys := denseMap.GetKeys()
-	utils.AssertEqual(t, len(keys), tree.Count())
+	assert.Equal(t, len(keys), tree.Count())
 
 	for iter, mapKey := range keys {
 		value, ok := denseMap.Get(mapKey)
@@ -69,9 +69,9 @@ func TestInsertDeleteAndGet(t *testing.T) {
 			t.Fatalf("Lookup failed for: %d\n", iter)
 		}
 		if iter == 0 {
-			utils.AssertEqual(t, 999, value.(int))
+			assert.Equal(t, 999, value.(int))
 		} else {
-			utils.AssertEqual(t, iter+10, value.(int))
+			assert.Equal(t, iter+10, value.(int))
 		}
 	}
 
@@ -83,7 +83,7 @@ func TestInsertDeleteAndGet(t *testing.T) {
 		}
 		return false
 	})
-	utils.AssertEqual(t, sum, 1154)
+	assert.Equal(t, sum, 1154)
 
 	for i := 1; i < 100; i++ {
 		key := Int64Key(i)
@@ -98,7 +98,7 @@ func TestInsertDeleteAndGet(t *testing.T) {
 	if !ok {
 		t.Fatalf("Could not get remaining key\n")
 	}
-	utils.AssertEqual(t, value.(int), 999)
+	assert.Equal(t, value.(int), 999)
 
 	tree.Delete(&zeroKey)
 

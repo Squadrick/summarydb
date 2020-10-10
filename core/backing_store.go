@@ -139,7 +139,7 @@ func NewBackingStore(backend storage.Backend) *BackingStore {
 }
 
 func (store *BackingStore) Get(streamID, windowID int64) *SummaryWindow {
-	window, found := store.summaryCache.Get(storage.GetBadgerKey(false, streamID, windowID))
+	window, found := store.summaryCache.Get(storage.GetKey(false, streamID, windowID))
 	if found {
 		return window.(*SummaryWindow)
 	}
@@ -148,18 +148,18 @@ func (store *BackingStore) Get(streamID, windowID int64) *SummaryWindow {
 }
 
 func (store *BackingStore) Put(streamID, windowID int64, window *SummaryWindow) {
-	store.summaryCache.Set(storage.GetBadgerKey(false, streamID, windowID), window, 1)
+	store.summaryCache.Set(storage.GetKey(false, streamID, windowID), window, 1)
 	buf := SummaryWindowToBytes(window)
 	store.backend.Put(streamID, windowID, buf)
 }
 
 func (store *BackingStore) Delete(streamID, windowID int64) {
-	store.summaryCache.Del(storage.GetBadgerKey(false, streamID, windowID))
+	store.summaryCache.Del(storage.GetKey(false, streamID, windowID))
 	store.backend.Delete(streamID, windowID)
 }
 
 func (store *BackingStore) GetLandmark(streamID, windowID int64) *LandmarkWindow {
-	window, found := store.landmarkCache.Get(storage.GetBadgerKey(true, streamID, windowID))
+	window, found := store.landmarkCache.Get(storage.GetKey(true, streamID, windowID))
 	if found {
 		return window.(*LandmarkWindow)
 	}
@@ -168,12 +168,12 @@ func (store *BackingStore) GetLandmark(streamID, windowID int64) *LandmarkWindow
 }
 
 func (store *BackingStore) PutLandmark(streamID, windowID int64, window *LandmarkWindow) {
-	store.landmarkCache.Set(storage.GetBadgerKey(true, streamID, windowID), window, 1)
+	store.landmarkCache.Set(storage.GetKey(true, streamID, windowID), window, 1)
 	buf := LandmarkWindowToBytes(window)
 	store.backend.PutLandmark(streamID, windowID, buf)
 }
 
 func (store *BackingStore) DeleteLandmark(streamID, windowID int64) {
-	store.landmarkCache.Del(storage.GetBadgerKey(true, streamID, windowID))
+	store.landmarkCache.Del(storage.GetKey(true, streamID, windowID))
 	store.backend.DeleteLandmark(streamID, windowID)
 }

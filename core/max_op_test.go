@@ -1,7 +1,7 @@
 package core
 
 import (
-	"summarydb/utils"
+	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
@@ -12,7 +12,7 @@ func TestMaxOp_Apply(t *testing.T) {
 	op := NewMaxOp()
 	op.Apply(data, data, 5.0, 0)
 
-	utils.AssertEqual(t, data.Max.Value, float64(5))
+	assert.Equal(t, data.Max.Value, float64(5))
 }
 
 func TestMaxOp_Merge(t *testing.T) {
@@ -27,5 +27,5 @@ func TestMaxOp_Merge(t *testing.T) {
 	op := NewMaxOp()
 	op.Merge(data, mergingData)
 
-	utils.AssertEqual(t, data.Max.Value, float64(4))
+	assert.Equal(t, data.Max.Value, float64(4))
 }

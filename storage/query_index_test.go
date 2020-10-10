@@ -1,27 +1,11 @@
 package storage
 
 import (
-	"summarydb/utils"
+	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
 func TestQueryIndex_GetOverlappingWindowIDs(t *testing.T) {
-	arrayEqual := func(a, b []int64) bool {
-		if (a == nil) != (b == nil) {
-			return false
-		}
-
-		if len(a) != len(b) {
-			return false
-		}
-
-		for i := range a {
-			if a[i] != b[i] {
-				return false
-			}
-		}
-		return true
-	}
 	index := NewQueryIndex()
 
 	for i := 0; i < 5; i++ {
@@ -29,10 +13,10 @@ func TestQueryIndex_GetOverlappingWindowIDs(t *testing.T) {
 	}
 
 	windows := index.GetOverlappingWindowIDs(8, 15)
-	utils.AssertTrue(t, arrayEqual(windows, []int64{5, 10, 15}))
+	assert.Equal(t, windows, []int64{5, 10, 15})
 	index.Remove(15)
 	windows = index.GetOverlappingWindowIDs(5, 15)
-	utils.AssertTrue(t, arrayEqual(windows, []int64{5, 10, 20}))
+	assert.Equal(t, windows, []int64{5, 10, 20})
 }
 
 func benchmarkGetOverlappingWindowIDs(b *testing.B, count int) {

@@ -1,9 +1,8 @@
 package core
 
 import (
-	"github.com/google/go-cmp/cmp"
+	"github.com/stretchr/testify/assert"
 	"summarydb/storage"
-	"summarydb/utils"
 	"testing"
 )
 
@@ -29,7 +28,7 @@ func TestSummaryWindowSerialization(t *testing.T) {
 	buf := SummaryWindowToBytes(window)
 	newWindow := BytesToSummaryWindow(buf)
 
-	utils.AssertTrue(t, cmp.Equal(window, newWindow))
+	assert.Equal(t, window, newWindow)
 }
 
 func TestLandmarkWindowSerialization(t *testing.T) {
@@ -37,7 +36,7 @@ func TestLandmarkWindowSerialization(t *testing.T) {
 	buf := LandmarkWindowToBytes(window)
 	newWindow := BytesToLandmarkWindow(buf)
 
-	utils.AssertTrue(t, cmp.Equal(window, newWindow))
+	assert.Equal(t, window, newWindow)
 }
 
 func TestInMemory(t *testing.T) {
@@ -52,6 +51,6 @@ func TestInMemory(t *testing.T) {
 	newSummaryWindow := store.Get(0, 1)
 	newLandmarkWindow := store.GetLandmark(1, 1)
 
-	utils.AssertTrue(t, cmp.Equal(summaryWindow, newSummaryWindow))
-	utils.AssertTrue(t, cmp.Equal(landmarkWindow, newLandmarkWindow))
+	assert.Equal(t, summaryWindow, newSummaryWindow)
+	assert.Equal(t, landmarkWindow, newLandmarkWindow)
 }
