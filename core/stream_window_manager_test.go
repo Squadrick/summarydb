@@ -70,8 +70,7 @@ func testStreamWindowManagerMerge(t *testing.T, backend storage.Backend) {
 		manager.PutSummaryWindow(summaryWindow)
 	}
 	middleSummaryWindows := manager.GetSummaryWindowInRange(1, 23)
-	manager.MergeSummaryWindows(middleSummaryWindows)
-	mergedWindow := middleSummaryWindows[0]
+	mergedWindow := manager.MergeSummaryWindows(middleSummaryWindows)
 
 	assert.Equal(t, mergedWindow.TimeEnd, int64(24))
 	assert.Equal(t, mergedWindow.Data.Count.Value, float64(5))

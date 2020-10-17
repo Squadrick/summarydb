@@ -2,32 +2,32 @@ package tree
 
 import "container/heap"
 
-type Item struct {
-	value    int64
-	priority int
-	index    int
+type HeapItem struct {
+	Value    int64
+	Priority int
+	Index    int
 }
 
-type MinHeap []*Item
+type MinHeap []*HeapItem
 
 func (mh MinHeap) Len() int {
 	return len(mh)
 }
 
 func (mh MinHeap) Less(i, j int) bool {
-	return mh[i].priority > mh[j].priority
+	return mh[i].Priority > mh[j].Priority
 }
 
 func (mh MinHeap) Swap(i, j int) {
 	mh[i], mh[j] = mh[j], mh[i]
-	mh[i].index = i
-	mh[j].index = j
+	mh[i].Index = i
+	mh[j].Index = j
 }
 
 func (mh *MinHeap) Push(x interface{}) {
 	n := len(*mh)
-	item := x.(*Item)
-	item.index = n
+	item := x.(*HeapItem)
+	item.Index = n
 	*mh = append(*mh, item)
 }
 
@@ -36,7 +36,7 @@ func (mh *MinHeap) Pop() interface{} {
 	n := len(old)
 	item := old[n-1]
 	old[n-1] = nil // avoid memory leak
-	item.index = -1
+	item.Index = -1
 	*mh = old[0 : n-1]
 	return item
 }
@@ -48,18 +48,18 @@ func (mh *MinHeap) Top() interface{} {
 	return item
 }
 
-func (mh *MinHeap) Update(item *Item, value int64, priority int) {
-	item.value = value
-	item.priority = priority
-	heap.Fix(mh, item.index)
+func (mh *MinHeap) Update(item *HeapItem, value int64, priority int) {
+	item.Value = value
+	item.Priority = priority
+	heap.Fix(mh, item.Index)
 }
 
-func (mh *MinHeap) Delete(item *Item) {
-	heap.Remove(mh, item.index)
+func (mh *MinHeap) Delete(item *HeapItem) {
+	heap.Remove(mh, item.Index)
 }
 
-func NewMinHeap() *MinHeap {
-	mh := make(MinHeap, 0)
+func NewMinHeap(initSize int) *MinHeap {
+	mh := make(MinHeap, 0, initSize)
 	heap.Init(&mh)
 	return &mh
 }

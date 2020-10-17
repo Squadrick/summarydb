@@ -117,7 +117,25 @@ func floor(node *rbNode, key RbKey) *rbNode {
 		if fn != nil {
 			return fn
 		}
+		return node
+	}
+}
 
+func lower(node *rbNode, key RbKey) *rbNode {
+	if node == nil {
+		return node
+	}
+
+	switch key.ComparedTo(node.key) {
+	case KeysAreEqual:
+		fallthrough
+	case KeyIsLess:
+		return lower(node.left, key)
+	default: // KeyIsGreater
+		ln := lower(node.right, key)
+		if ln != nil {
+			return ln
+		}
 		return node
 	}
 }
@@ -152,9 +170,9 @@ func higher(node *rbNode, key RbKey) *rbNode {
 	case KeyIsGreater:
 		return higher(node.right, key)
 	default:
-		cn := higher(node.left, key)
-		if cn != nil {
-			return cn
+		hn := higher(node.left, key)
+		if hn != nil {
+			return hn
 		}
 		return node
 	}
@@ -315,6 +333,20 @@ func (tree *RbTree) Higher(key RbKey) (RbKey, interface{}) {
 	return nil, nil
 }
 
+// Lower returns the largest key in the tree strictly greater than key
+func (tree *RbTree) Lower(key RbKey) (RbKey, interface{}) {
+	tree.mutex.RLock()
+	defer tree.mutex.RUnlock()
+	if key != nil && tree.root != nil {
+		node := lower(tree.root, key)
+		if node == nil {
+			return nil, nil
+		}
+		return node.key, node.value
+	}
+	return nil, nil
+}
+
 func (tree *RbTree) find(key RbKey) *rbNode {
 	for node := tree.root; node != nil; {
 		switch key.ComparedTo(node.key) {
@@ -327,6 +359,15 @@ func (tree *RbTree) find(key RbKey) *rbNode {
 		}
 	}
 	return nil
+}
+
+func (tree *RbTree) update(key RbKey, value interface{}) bool {
+	node := tree.find(key)
+	if node == nil {
+		return false
+	}
+	node.value = value
+	return true
 }
 
 func (tree *RbTree) Get(key RbKey) (interface{}, bool) {
@@ -368,10 +409,16 @@ func (tree *RbTree) insertNode(node *rbNode, key RbKey, value interface{}) *rbNo
 func (tree *RbTree) Insert(key RbKey, value interface{}) {
 	tree.mutex.Lock()
 	defer tree.mutex.Unlock()
+
 	if key != nil {
-		tree.version++
-		tree.root = tree.insertNode(tree.root, key, value)
-		tree.root.colour = black
+		// First check if the key exists already, and update it if found.
+		updated := tree.update(key, value)
+		if !updated {
+			// Else, insert a new node and balance.
+			tree.version++
+			tree.root = tree.insertNode(tree.root, key, value)
+			tree.root.colour = black
+		}
 	}
 }
 

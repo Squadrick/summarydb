@@ -13,7 +13,8 @@ type StreamWindowManager struct {
 	backingStore  *BackingStore
 }
 
-func GetDataFromWindows(windows []SummaryWindow) []DataTable {
+// TODO: Make this return []*DataTable
+func GetDataFromWindows(windows []*SummaryWindow) []DataTable {
 	opData := make([]DataTable, len(windows))
 	for i, window := range windows {
 		opData[i] = *window.Data
@@ -43,16 +44,23 @@ func (manager *StreamWindowManager) PrimeUp() {
 
 // SUMMARY WINDOWS
 
-func (manager *StreamWindowManager) MergeSummaryWindows(summaryWindows []SummaryWindow) {
+func (manager *StreamWindowManager) MergeSummaryWindows(summaryWindows []*SummaryWindow) *SummaryWindow {
 	if len(summaryWindows) == 0 {
-		return
+		return nil
 	}
 
-	summaryWindows[0].CountEnd = summaryWindows[len(summaryWindows)-1].CountEnd
-	summaryWindows[0].TimeEnd = summaryWindows[len(summaryWindows)-1].TimeEnd
+	firstWindow := summaryWindows[0]
+	lastWindow := summaryWindows[len(summaryWindows)-1]
+
+	mergedWindow := NewSummaryWindow(
+		firstWindow.TimeStart,
+		lastWindow.TimeEnd,
+		firstWindow.CountStart,
+		lastWindow.CountEnd)
 
 	opData := GetDataFromWindows(summaryWindows)
-	summaryWindows[0].Data = manager.operators.Merge(opData)
+	mergedWindow.Data = manager.operators.Merge(opData)
+	return mergedWindow
 }
 
 func (manager *StreamWindowManager) InsertIntoSummaryWindow(window *SummaryWindow, ts int64, value float64) {
@@ -66,16 +74,16 @@ func (manager *StreamWindowManager) GetSummaryWindow(swid int64) *SummaryWindow 
 	return manager.backingStore.Get(manager.id, swid)
 }
 
-func (manager *StreamWindowManager) GetSummaryWindowInRange(t0, t1 int64) []SummaryWindow {
+func (manager *StreamWindowManager) GetSummaryWindowInRange(t0, t1 int64) []*SummaryWindow {
 	ids := manager.summaryIndex.GetOverlappingWindowIDs(t0, t1)
-	summaryWindows := make([]SummaryWindow, 0, len(ids))
+	summaryWindows := make([]*SummaryWindow, 0, len(ids))
 
 	for _, id := range ids {
 		window := manager.GetSummaryWindow(id)
 		if window.TimeEnd < t0 || window.TimeStart > t1 {
 			continue
 		}
-		summaryWindows = append(summaryWindows, *manager.GetSummaryWindow(id))
+		summaryWindows = append(summaryWindows, manager.GetSummaryWindow(id))
 	}
 	return summaryWindows
 }

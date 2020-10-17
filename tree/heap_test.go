@@ -6,33 +6,33 @@ import (
 )
 
 func TestMinHeap(t *testing.T) {
-	heap := NewMinHeap()
+	heap := NewMinHeap(10)
 
 	for i := 9; i >= 0; i-- {
-		item := &Item{
-			value:    int64(i + 10),
-			priority: i,
+		item := &HeapItem{
+			Value:    int64(i + 10),
+			Priority: i,
 		}
 		heap.Push(item)
 	}
 
-	itemDel := heap.Top().(*Item)
+	itemDel := heap.Top().(*HeapItem)
 	heap.Delete(itemDel)
 
-	itemUpdate := heap.Top().(*Item)
-	heap.Update(itemUpdate, 999, itemUpdate.priority)
-	assert.Equal(t, heap.Top().(*Item).value, int64(999))
+	itemUpdate := heap.Top().(*HeapItem)
+	heap.Update(itemUpdate, 999, itemUpdate.Priority)
+	assert.Equal(t, heap.Top().(*HeapItem).Value, int64(999))
 
 	for i := 0; i < 10; i++ {
-		if itemDel.priority == i {
+		if itemDel.Priority == i {
 			continue
 		}
-		item := heap.Pop().(*Item)
-		assert.Equal(t, item.priority, i)
+		item := heap.Pop().(*HeapItem)
+		assert.Equal(t, item.Priority, i)
 		if i == 1 {
-			assert.Equal(t, item.value, int64(999))
+			assert.Equal(t, item.Value, int64(999))
 		} else {
-			assert.Equal(t, item.value, int64(i+10))
+			assert.Equal(t, item.Value, int64(i+10))
 		}
 	}
 }
