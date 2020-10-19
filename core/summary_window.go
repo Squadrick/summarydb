@@ -17,6 +17,23 @@ type SummaryWindow struct {
 	Data       *DataTable
 }
 
+var shutdownSummaryWindow *SummaryWindow = nil
+var flushSummaryWindow *SummaryWindow = nil
+
+func ConstShutdownSummaryWindow() *SummaryWindow {
+	if shutdownSummaryWindow == nil {
+		shutdownSummaryWindow = NewSummaryWindow(0, 0, 0, 0)
+	}
+	return shutdownSummaryWindow
+}
+
+func ConstFlushSummaryWindow() *SummaryWindow {
+	if flushSummaryWindow == nil {
+		flushSummaryWindow = NewSummaryWindow(0, 0, 0, 0)
+	}
+	return flushSummaryWindow
+}
+
 func NewSummaryWindow(timeStart, timeEnd, countStart, countEnd int64) *SummaryWindow {
 	window := SummaryWindow{
 		TimeStart:  timeStart,

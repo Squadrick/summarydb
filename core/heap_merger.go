@@ -9,6 +9,28 @@ import (
 
 const bufferSize int = 100
 
+type MergeEvent struct {
+	Id   int64
+	Size int64
+}
+
+var shutdownMergeEvent *MergeEvent = nil
+var flushMergeEvent *MergeEvent = nil
+
+func ConstShutdownMergeEvent() *MergeEvent {
+	if shutdownMergeEvent == nil {
+		shutdownMergeEvent = &MergeEvent{-1, -1}
+	}
+	return shutdownMergeEvent
+}
+
+func ConstFlushMergeEvent() *MergeEvent {
+	if flushMergeEvent == nil {
+		flushMergeEvent = &MergeEvent{-1, -1}
+	}
+	return flushMergeEvent
+}
+
 type HeapMergerIndexItem struct {
 	cEnd     int64
 	heapItem *tree.HeapItem
@@ -296,18 +318,18 @@ func (hm *HeapMerger) updatePendingMerges() {
 	}
 }
 
-func (hm *HeapMerger) Run(ctx context.Context, inputCh <-chan *window.Info) {
+func (hm *HeapMerger) Run(ctx context.Context, inputCh <-chan *MergeEvent) {
 	defer fmt.Println("EOF")
 	for {
 		select {
 
 		case windowInfo := <-inputCh:
-			if windowInfo == window.ConstShutdownSentinel() {
+			if windowInfo == ConstShutdownMergeEvent() {
 				hm.issueAllPendingMerges()
 				// notify(MERGER)
 				fmt.Println("shutdown")
 				return
-			} else if windowInfo == window.ConstFlushSentinel() {
+			} else if windowInfo == ConstFlushMergeEvent() {
 				fmt.Println("flush")
 				hm.issueAllPendingMerges()
 				// notify(MERGER)
