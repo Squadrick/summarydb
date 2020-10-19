@@ -1,6 +1,9 @@
 package core
 
-import "sync"
+import (
+	"sync"
+	"sync/atomic"
+)
 
 const (
 	SUMMARIZER = iota
@@ -9,7 +12,7 @@ const (
 )
 
 type Barrier struct {
-	flushCount int64
+	flushCount int32
 	counters   [3]int64
 	cond       sync.Cond
 	mutex      sync.Mutex
@@ -38,4 +41,8 @@ func (b *Barrier) Wait(barrierType int, threshold int64) {
 			b.cond.Wait()
 		}
 	}
+}
+
+func (b *Barrier) GetNextFlush() int32 {
+	return atomic.AddInt32(&b.flushCount, 1)
 }
