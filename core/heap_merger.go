@@ -176,9 +176,10 @@ type HeapMerger struct {
 	numElements         int64
 	numWindows          int64
 	pendingMerges       map[int64][]int64
+	barrier             *Barrier
 }
 
-func NewHeapMerger(windowing window.Windowing, windowsPerBatch int64) *HeapMerger {
+func NewHeapMerger(windowing window.Windowing, windowsPerBatch int64, barrier *Barrier) *HeapMerger {
 	return &HeapMerger{
 		streamWindowManager: nil,
 		windowing:           windowing,
@@ -188,6 +189,7 @@ func NewHeapMerger(windowing window.Windowing, windowsPerBatch int64) *HeapMerge
 		numWindows:          0,
 		numElements:         0,
 		pendingMerges:       make(map[int64][]int64),
+		barrier:             barrier,
 	}
 }
 
@@ -319,20 +321,21 @@ func (hm *HeapMerger) updatePendingMerges() {
 }
 
 func (hm *HeapMerger) Run(ctx context.Context, inputCh <-chan *MergeEvent) {
-	defer fmt.Println("EOF")
 	for {
 		select {
 
 		case windowInfo := <-inputCh:
 			if windowInfo == ConstShutdownMergeEvent() {
 				hm.issueAllPendingMerges()
-				// notify(MERGER)
-				fmt.Println("shutdown")
+				if hm.barrier != nil {
+					hm.barrier.Notify(MERGER)
+				}
 				return
 			} else if windowInfo == ConstFlushMergeEvent() {
-				fmt.Println("flush")
 				hm.issueAllPendingMerges()
-				// notify(MERGER)
+				if hm.barrier != nil {
+					hm.barrier.Notify(MERGER)
+				}
 				continue
 			} else {
 				hm.numElements += windowInfo.Size

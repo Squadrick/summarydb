@@ -7,10 +7,14 @@ import (
 
 type Writer struct {
 	streamWindowManager *StreamWindowManager
+	barrier             *Barrier
 }
 
-func NewWriter() *Writer {
-	return &Writer{streamWindowManager: nil}
+func NewWriter(barrier *Barrier) *Writer {
+	return &Writer{
+		streamWindowManager: nil,
+		barrier:             barrier,
+	}
 }
 
 func (w *Writer) SetWindowManager(manager *StreamWindowManager) {
@@ -23,12 +27,14 @@ func (w *Writer) Run(ctx context.Context, inputCh <-chan *SummaryWindow, outputC
 
 		case summaryWindow := <-inputCh:
 			if summaryWindow == ConstShutdownSummaryWindow() {
-				// notify(WRITER)
-				fmt.Println("showdown")
+				if w.barrier != nil {
+					w.barrier.Notify(WRITER)
+				}
 				return
 			} else if summaryWindow == ConstFlushSummaryWindow() {
-				// notify(WRITER)
-				fmt.Println("flush")
+				if w.barrier != nil {
+					w.barrier.Notify(WRITER)
+				}
 				continue
 			} else {
 				w.streamWindowManager.PutSummaryWindow(summaryWindow)

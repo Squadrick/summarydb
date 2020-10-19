@@ -4,13 +4,15 @@ type Summarizer struct {
 	streamWindowManager *StreamWindowManager
 	windowLengths       []int64
 	numElements         int64
+	barrier             *Barrier
 }
 
-func NewSummarizer() *Summarizer {
+func NewSummarizer(barrier *Barrier) *Summarizer {
 	return &Summarizer{
 		streamWindowManager: nil,
 		windowLengths:       nil,
 		numElements:         0,
+		barrier:             barrier,
 	}
 }
 
@@ -48,10 +50,14 @@ func (s *Summarizer) Run(
 		select {
 		case ingestBuffer := <-summarizerQueue:
 			if ingestBuffer == ConstShutdownIngestBuffer() {
-				// notify (SUMMARIZER)
+				if s.barrier != nil {
+					s.barrier.Notify(SUMMARIZER)
+				}
 				break
 			} else if ingestBuffer == ConstFlushIngestBuffer() {
-				// notify (SUMMARIZER)
+				if s.barrier != nil {
+					s.barrier.Notify(SUMMARIZER)
+				}
 				continue
 			} else {
 				W := s.getNumWindowsCovering(ingestBuffer)
