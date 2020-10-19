@@ -3,11 +3,13 @@ package core
 import (
 	"context"
 	"fmt"
+	"math"
 	"summarydb/tree"
 	"summarydb/window"
 )
 
 const bufferSize int = 100
+const INVALID_INT64 int64 = math.MinInt64
 
 type MergeEvent struct {
 	Id   int64
@@ -62,6 +64,9 @@ func (event *MergerIndex) PopulateFromHeap(heap *tree.MinHeap) {
 }
 
 func (event *MergerIndex) Put(swid int64, cEnd int64) {
+	if swid == INVALID_INT64 {
+		return
+	}
 	key := tree.Int64Key(swid)
 	item := &MergerIndexItem{
 		cEnd:     cEnd,
@@ -71,6 +76,9 @@ func (event *MergerIndex) Put(swid int64, cEnd int64) {
 }
 
 func (event *MergerIndex) Remove(swid int64) *MergerIndexItem {
+	if swid == INVALID_INT64 {
+		return nil
+	}
 	key := tree.Int64Key(swid)
 	item, ok := event.indexMap.Get(&key)
 	if !ok {
@@ -82,67 +90,76 @@ func (event *MergerIndex) Remove(swid int64) *MergerIndexItem {
 }
 
 func (event *MergerIndex) Contains(swid int64) bool {
+	if swid == INVALID_INT64 {
+		return false
+	}
 	key := tree.Int64Key(swid)
 	return event.indexMap.Exists(&key)
 }
 
-func (event *MergerIndex) GetCStart(swid int64) (int64, bool) {
-	if !event.Contains(swid) {
-		return -1, false
+func (event *MergerIndex) GetCStart(swid int64) int64 {
+	if !event.Contains(swid) || swid == INVALID_INT64 {
+		return INVALID_INT64
 	}
 	key := tree.Int64Key(swid)
 	_, prevItem := event.indexMap.Lower(&key)
 	if prevItem == nil {
-		return 0, true
+		return 0
 	}
 	indexItem := prevItem.(*MergerIndexItem)
-	return indexItem.cEnd + 1, true
+	return indexItem.cEnd + 1
 }
 
-func (event *MergerIndex) GetCEnd(swid int64) (int64, bool) {
+func (event *MergerIndex) GetCEnd(swid int64) int64 {
+	if swid == INVALID_INT64 {
+		return INVALID_INT64
+	}
 	key := tree.Int64Key(swid)
 	item, ok := event.indexMap.Get(&key)
 	if !ok {
-		return 0, false
+		return INVALID_INT64
 	}
 	indexItem := item.(*MergerIndexItem)
-	return indexItem.cEnd, true
+	return indexItem.cEnd
 }
 
-func (event *MergerIndex) GetPred(swid int64) (int64, bool) {
-	if !event.Contains(swid) {
-		return 0, false
+func (event *MergerIndex) GetPred(swid int64) int64 {
+	if !event.Contains(swid) || swid == INVALID_INT64 {
+		return math.MinInt64
 	}
 	key := tree.Int64Key(swid)
 	prevKey, _ := event.indexMap.Lower(&key)
 	if prevKey == nil {
-		return 0, false
+		return math.MinInt64
 	}
-	return int64(*prevKey.(*tree.Int64Key)), true
+	return int64(*prevKey.(*tree.Int64Key))
 }
 
-func (event *MergerIndex) GetSucc(swid int64) (int64, bool) {
-	if !event.Contains(swid) {
-		return 0, false
+func (event *MergerIndex) GetSucc(swid int64) int64 {
+	if !event.Contains(swid) || swid == INVALID_INT64 {
+		return INVALID_INT64
 	}
 	key := tree.Int64Key(swid)
 	succKey, _ := event.indexMap.Higher(&key)
 	if succKey == nil {
-		return 0, false
+		return INVALID_INT64
 	}
-	return int64(*succKey.(*tree.Int64Key)), true
+	return int64(*succKey.(*tree.Int64Key))
 }
 
-func (event *MergerIndex) GetLastSWID() (int64, bool) {
+func (event *MergerIndex) GetLastSWID() int64 {
 	if event.indexMap.IsEmpty() {
-		return 0, false
+		return INVALID_INT64
 	}
 
 	maxKey, _ := event.indexMap.Max()
-	return int64(*maxKey.(*tree.Int64Key)), true
+	return int64(*maxKey.(*tree.Int64Key))
 }
 
 func (event *MergerIndex) UnsetHeapItem(swid int64) *tree.HeapItem {
+	if swid == INVALID_INT64 {
+		return nil
+	}
 	key := tree.Int64Key(swid)
 	item, ok := event.indexMap.Get(&key)
 	if !ok {
@@ -155,6 +172,9 @@ func (event *MergerIndex) UnsetHeapItem(swid int64) *tree.HeapItem {
 }
 
 func (event *MergerIndex) SetHeapItem(swid int64, heapItem *tree.HeapItem) bool {
+	if swid == INVALID_INT64 {
+		return false
+	}
 	key := tree.Int64Key(swid)
 	item, ok := event.indexMap.Get(&key)
 	if !ok {
@@ -202,6 +222,10 @@ func (hm *Merger) SetWindowManager(manager *StreamWindowManager) {
 // set mergeCounts[(w0, w1)] = first n' >= n such that (w0, w1) will need to
 // merged after n' elements have been inserted.
 func (hm *Merger) updateMergeCountFor(w0, w1, c0, c1, n int64) {
+	if w0 == INVALID_INT64 || w1 == INVALID_INT64 || c0 == INVALID_INT64 || c1 == INVALID_INT64 {
+		return
+	}
+
 	existingEntry := hm.index.UnsetHeapItem(w0)
 	if existingEntry != nil {
 		hm.mergeCounts.Delete(existingEntry)
@@ -228,6 +252,9 @@ func (hm *Merger) GetNumUnissuedMerges() int {
 
 // Add entry merge(w0, [windows merged into w0], w1, [windows merged into w1])
 func (hm *Merger) addPendingMerge(w0 int64, w1 int64) {
+	if w0 == INVALID_INT64 || w1 == INVALID_INT64 {
+		return
+	}
 	tail, found := hm.pendingMerges[w0]
 	if !found {
 		tail = make([]int64, 0)
@@ -281,42 +308,31 @@ func (hm *Merger) updatePendingMerges() {
 		if hm.mergeCounts.Len() == 0 {
 			return
 		}
-		minItem := hm.mergeCounts.Top().(*tree.HeapItem)
-		if int64(minItem.Priority) > hm.numElements {
-			return
-		}
-		minItem = hm.mergeCounts.Pop().(*tree.HeapItem)
+		minItem := hm.mergeCounts.Pop().(*tree.HeapItem)
 		hm.index.UnsetHeapItem(minItem.Value)
 
 		w1 := minItem.Value
-		w0, ok0 := hm.index.GetPred(w1)
-		w2, ok2 := hm.index.GetSucc(w1)
-		w3, ok3 := hm.index.GetSucc(w2)
+		w2 := hm.index.GetSucc(w1)
 
-		if !(ok0 && ok2 && ok3) {
-			return
-		}
+		w0 := hm.index.GetPred(w1)
+		w3 := hm.index.GetSucc(w2)
 
-		newW1CStart, _ := hm.index.GetCStart(w1)
-		newW1CEnd, _ := hm.index.GetCEnd(w2)
+		w1NewStart := hm.index.GetCStart(w1)
+		w1NewEnd := hm.index.GetCEnd(w2)
 
 		hm.addPendingMerge(w1, w2)
-
 		oldW2IndexItem := hm.index.Remove(w2)
-		hm.index.Put(w1, newW1CEnd)
+		hm.index.Put(w1, w1NewEnd)
 
 		if oldW2IndexItem.heapItem != nil {
 			hm.mergeCounts.Delete(oldW2IndexItem.heapItem)
 		}
 
-		w0CStart, ok := hm.index.GetCStart(w0)
-		w3CEnd, _ := hm.index.GetCEnd(w3)
-		if ok {
-			return
-		}
+		w0CStart := hm.index.GetCStart(w0)
+		w3CEnd := hm.index.GetCEnd(w3)
 
-		hm.updateMergeCountFor(w0, w1, w0CStart, newW1CEnd, hm.numElements)
-		hm.updateMergeCountFor(w0, w3, newW1CStart, w3CEnd, hm.numElements)
+		hm.updateMergeCountFor(w0, w1, w0CStart, w1NewEnd, hm.numElements)
+		hm.updateMergeCountFor(w0, w3, w1NewStart, w3CEnd, hm.numElements)
 	}
 }
 
@@ -341,13 +357,10 @@ func (hm *Merger) Run(ctx context.Context, inputCh <-chan *MergeEvent) {
 				hm.numElements += windowInfo.Size
 				hm.numWindows += 1
 
-				lastWindowId, ok := hm.index.GetLastSWID()
-				if ok {
-					cStart, ok := hm.index.GetCStart(lastWindowId)
-					if ok {
-						hm.updateMergeCountFor(lastWindowId, windowInfo.Id, cStart, hm.numElements-1, hm.numElements)
-					}
-				}
+				lastWindowId := hm.index.GetLastSWID()
+				cStart := hm.index.GetCStart(lastWindowId)
+				hm.updateMergeCountFor(lastWindowId, windowInfo.Id, cStart, hm.numElements-1, hm.numElements)
+
 				hm.index.Put(windowInfo.Id, hm.numElements-1)
 				hm.updatePendingMerges()
 				if hm.numWindows%hm.windowsPerBatch == 0 {

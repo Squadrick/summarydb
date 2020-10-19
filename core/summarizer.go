@@ -1,5 +1,7 @@
 package core
 
+import "context"
+
 type Summarizer struct {
 	streamWindowManager *StreamWindowManager
 	windowLengths       []int64
@@ -41,6 +43,7 @@ func (s *Summarizer) getNumWindowsCovering(ib *IngestBuffer) int {
 }
 
 func (s *Summarizer) Run(
+	ctx context.Context,
 	summarizerQueue <-chan *IngestBuffer,
 	writerQueue chan<- *SummaryWindow,
 	emptyBuffers chan<- *IngestBuffer,
@@ -98,6 +101,8 @@ func (s *Summarizer) Run(
 					partialBuffers <- ingestBuffer
 				}
 			}
+		case <-ctx.Done():
+			return
 		}
 	}
 }
