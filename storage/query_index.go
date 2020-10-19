@@ -51,24 +51,28 @@ func (index *QueryIndex) GetOverlappingWindowIDs(t0 int64, t1 int64) []int64 {
 	t1Key := tree.Int64Key(t1)
 	_, l := index.tStarts.Floor(&t0Key)
 	_, r := index.tStarts.Ceiling(&t1Key)
-	windows := make([]int64, 0, index.GetNumberWindows())
-	windows = append(windows, l.(int64))
-	index.tStarts.Map(func(key tree.RbKey, i interface{}) bool {
-		value := i.(int64)
-		rvalue, ok := r.(int64)
-		// r can be nil. In this case, we consider it as +inf and
-		// keeping iterating till the end.
-		rcond := false
-		if !ok {
-			rcond = true
-		} else {
-			rcond = value <= rvalue
-		}
 
-		if value > l.(int64) && rcond {
-			windows = append(windows, value)
+	checkBoundary := func(value interface{}, boundary interface{}, Comp func(int64, int64) bool) bool {
+		bound, ok := boundary.(int64)
+		if ok {
+			return Comp(value.(int64), bound)
+		} else {
 			return false
-		} else if value > rvalue {
+		}
+	}
+	checkL := func(value interface{}) bool {
+		return checkBoundary(value, l, func(a int64, b int64) bool { return a >= b })
+	}
+	checkR := func(value interface{}) bool {
+		return checkBoundary(value, r, func(a int64, b int64) bool { return a <= b })
+	}
+
+	windows := make([]int64, 0, index.GetNumberWindows())
+	index.tStarts.Map(func(key tree.RbKey, i interface{}) bool {
+		if checkL(i) && checkR(i) {
+			windows = append(windows, i.(int64))
+			return false
+		} else if !checkR(i) {
 			return true
 		}
 		return false
