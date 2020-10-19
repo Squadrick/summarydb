@@ -31,7 +31,7 @@ func ConstFlushMergeEvent() *MergeEvent {
 	return flushMergeEvent
 }
 
-type HeapMergerIndexItem struct {
+type MergerIndexItem struct {
 	cEnd     int64
 	heapItem *tree.HeapItem
 }
@@ -41,52 +41,52 @@ type HeapMergerIndexItem struct {
 //		cEnd is the end timestamp
 // 		heapItem is a pointer to an element in the main merge heap (mergeCounts)
 // To support predecessor/successor lookups, we use a RB tree instead of hashmap
-type HeapMergerIndex struct {
+type MergerIndex struct {
 	indexMap *tree.RbTree
 }
 
-func NewHeapMergerIndex() *HeapMergerIndex {
-	return &HeapMergerIndex{indexMap: tree.NewRbTree()}
+func NewMergerIndex() *MergerIndex {
+	return &MergerIndex{indexMap: tree.NewRbTree()}
 }
 
-func (event *HeapMergerIndex) PopulateFromHeap(heap *tree.MinHeap) {
+func (event *MergerIndex) PopulateFromHeap(heap *tree.MinHeap) {
 	for _, entry := range *heap {
 		int64Key := tree.Int64Key(entry.Value)
 		item, ok := event.indexMap.Get(&int64Key)
 		if !ok {
 			continue
 		}
-		indexItem := item.(*HeapMergerIndexItem)
+		indexItem := item.(*MergerIndexItem)
 		indexItem.heapItem = entry
 	}
 }
 
-func (event *HeapMergerIndex) Put(swid int64, cEnd int64) {
+func (event *MergerIndex) Put(swid int64, cEnd int64) {
 	key := tree.Int64Key(swid)
-	item := &HeapMergerIndexItem{
+	item := &MergerIndexItem{
 		cEnd:     cEnd,
 		heapItem: nil,
 	}
 	event.indexMap.Insert(&key, item)
 }
 
-func (event *HeapMergerIndex) Remove(swid int64) *HeapMergerIndexItem {
+func (event *MergerIndex) Remove(swid int64) *MergerIndexItem {
 	key := tree.Int64Key(swid)
 	item, ok := event.indexMap.Get(&key)
 	if !ok {
 		return nil
 	}
-	indexItem := item.(*HeapMergerIndexItem)
+	indexItem := item.(*MergerIndexItem)
 	event.indexMap.Delete(&key)
 	return indexItem
 }
 
-func (event *HeapMergerIndex) Contains(swid int64) bool {
+func (event *MergerIndex) Contains(swid int64) bool {
 	key := tree.Int64Key(swid)
 	return event.indexMap.Exists(&key)
 }
 
-func (event *HeapMergerIndex) GetCStart(swid int64) (int64, bool) {
+func (event *MergerIndex) GetCStart(swid int64) (int64, bool) {
 	if !event.Contains(swid) {
 		return -1, false
 	}
@@ -95,21 +95,21 @@ func (event *HeapMergerIndex) GetCStart(swid int64) (int64, bool) {
 	if prevItem == nil {
 		return 0, true
 	}
-	indexItem := prevItem.(*HeapMergerIndexItem)
+	indexItem := prevItem.(*MergerIndexItem)
 	return indexItem.cEnd + 1, true
 }
 
-func (event *HeapMergerIndex) GetCEnd(swid int64) (int64, bool) {
+func (event *MergerIndex) GetCEnd(swid int64) (int64, bool) {
 	key := tree.Int64Key(swid)
 	item, ok := event.indexMap.Get(&key)
 	if !ok {
 		return 0, false
 	}
-	indexItem := item.(*HeapMergerIndexItem)
+	indexItem := item.(*MergerIndexItem)
 	return indexItem.cEnd, true
 }
 
-func (event *HeapMergerIndex) GetPred(swid int64) (int64, bool) {
+func (event *MergerIndex) GetPred(swid int64) (int64, bool) {
 	if !event.Contains(swid) {
 		return 0, false
 	}
@@ -121,7 +121,7 @@ func (event *HeapMergerIndex) GetPred(swid int64) (int64, bool) {
 	return int64(*prevKey.(*tree.Int64Key)), true
 }
 
-func (event *HeapMergerIndex) GetSucc(swid int64) (int64, bool) {
+func (event *MergerIndex) GetSucc(swid int64) (int64, bool) {
 	if !event.Contains(swid) {
 		return 0, false
 	}
@@ -133,7 +133,7 @@ func (event *HeapMergerIndex) GetSucc(swid int64) (int64, bool) {
 	return int64(*succKey.(*tree.Int64Key)), true
 }
 
-func (event *HeapMergerIndex) GetLastSWID() (int64, bool) {
+func (event *MergerIndex) GetLastSWID() (int64, bool) {
 	if event.indexMap.IsEmpty() {
 		return 0, false
 	}
@@ -142,50 +142,50 @@ func (event *HeapMergerIndex) GetLastSWID() (int64, bool) {
 	return int64(*maxKey.(*tree.Int64Key)), true
 }
 
-func (event *HeapMergerIndex) UnsetHeapItem(swid int64) *tree.HeapItem {
+func (event *MergerIndex) UnsetHeapItem(swid int64) *tree.HeapItem {
 	key := tree.Int64Key(swid)
 	item, ok := event.indexMap.Get(&key)
 	if !ok {
 		return nil
 	}
-	indexItem := item.(*HeapMergerIndexItem)
+	indexItem := item.(*MergerIndexItem)
 	heapPtr := indexItem.heapItem
 	indexItem.heapItem = nil
 	return heapPtr
 }
 
-func (event *HeapMergerIndex) SetHeapItem(swid int64, heapItem *tree.HeapItem) bool {
+func (event *MergerIndex) SetHeapItem(swid int64, heapItem *tree.HeapItem) bool {
 	key := tree.Int64Key(swid)
 	item, ok := event.indexMap.Get(&key)
 	if !ok {
 		return ok
 	}
-	indexItem := item.(*HeapMergerIndexItem)
+	indexItem := item.(*MergerIndexItem)
 	indexItem.heapItem = heapItem
 	return true
 }
 
 // mergeCounts is a priority queue, mapping each summary window w_i to the time
 // at which w_{i+1} will be merged into it.
-type HeapMerger struct {
+type Merger struct {
 	streamWindowManager *StreamWindowManager
 	windowing           window.Windowing
 	windowsPerBatch     int64
 	mergeCounts         *tree.MinHeap
-	index               *HeapMergerIndex
+	index               *MergerIndex
 	numElements         int64
 	numWindows          int64
 	pendingMerges       map[int64][]int64
 	barrier             *Barrier
 }
 
-func NewHeapMerger(windowing window.Windowing, windowsPerBatch int64, barrier *Barrier) *HeapMerger {
-	return &HeapMerger{
+func NewMerger(windowing window.Windowing, windowsPerBatch int64, barrier *Barrier) *Merger {
+	return &Merger{
 		streamWindowManager: nil,
 		windowing:           windowing,
 		windowsPerBatch:     windowsPerBatch,
 		mergeCounts:         tree.NewMinHeap(bufferSize),
-		index:               NewHeapMergerIndex(),
+		index:               NewMergerIndex(),
 		numWindows:          0,
 		numElements:         0,
 		pendingMerges:       make(map[int64][]int64),
@@ -193,7 +193,7 @@ func NewHeapMerger(windowing window.Windowing, windowsPerBatch int64, barrier *B
 	}
 }
 
-func (hm *HeapMerger) SetWindowManager(manager *StreamWindowManager) {
+func (hm *Merger) SetWindowManager(manager *StreamWindowManager) {
 	hm.streamWindowManager = manager
 	hm.index.PopulateFromHeap(hm.mergeCounts)
 }
@@ -201,7 +201,7 @@ func (hm *HeapMerger) SetWindowManager(manager *StreamWindowManager) {
 // Given consecutive windows w0, w1 which together span the count [c0, c1],
 // set mergeCounts[(w0, w1)] = first n' >= n such that (w0, w1) will need to
 // merged after n' elements have been inserted.
-func (hm *HeapMerger) updateMergeCountFor(w0, w1, c0, c1, n int64) {
+func (hm *Merger) updateMergeCountFor(w0, w1, c0, c1, n int64) {
 	existingEntry := hm.index.UnsetHeapItem(w0)
 	if existingEntry != nil {
 		hm.mergeCounts.Delete(existingEntry)
@@ -220,14 +220,14 @@ func (hm *HeapMerger) updateMergeCountFor(w0, w1, c0, c1, n int64) {
 	}
 }
 
-func (hm *HeapMerger) GetNumUnissuedMerges() int {
+func (hm *Merger) GetNumUnissuedMerges() int {
 	return len(hm.pendingMerges)
 }
 
 // HANDLING MERGING
 
 // Add entry merge(w0, [windows merged into w0], w1, [windows merged into w1])
-func (hm *HeapMerger) addPendingMerge(w0 int64, w1 int64) {
+func (hm *Merger) addPendingMerge(w0 int64, w1 int64) {
 	tail, found := hm.pendingMerges[w0]
 	if !found {
 		tail = make([]int64, 0)
@@ -244,7 +244,7 @@ func (hm *HeapMerger) addPendingMerge(w0 int64, w1 int64) {
 	hm.pendingMerges[w0] = tail
 }
 
-func (hm *HeapMerger) issuePendingMerge(head int64, tail []int64) {
+func (hm *Merger) issuePendingMerge(head int64, tail []int64) {
 	if tail == nil || len(tail) == 0 {
 		return
 	}
@@ -266,7 +266,7 @@ func (hm *HeapMerger) issuePendingMerge(head int64, tail []int64) {
 	}
 }
 
-func (hm *HeapMerger) issueAllPendingMerges() {
+func (hm *Merger) issueAllPendingMerges() {
 	// TODO: Parallelize this using a worker pool, let num workers be a param.
 	for head, tail := range hm.pendingMerges {
 		hm.issuePendingMerge(head, tail)
@@ -276,7 +276,7 @@ func (hm *HeapMerger) issueAllPendingMerges() {
 	hm.pendingMerges = make(map[int64][]int64)
 }
 
-func (hm *HeapMerger) updatePendingMerges() {
+func (hm *Merger) updatePendingMerges() {
 	for {
 		if hm.mergeCounts.Len() == 0 {
 			return
@@ -320,7 +320,7 @@ func (hm *HeapMerger) updatePendingMerges() {
 	}
 }
 
-func (hm *HeapMerger) Run(ctx context.Context, inputCh <-chan *MergeEvent) {
+func (hm *Merger) Run(ctx context.Context, inputCh <-chan *MergeEvent) {
 	for {
 		select {
 
