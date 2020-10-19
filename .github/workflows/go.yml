@@ -28,10 +28,5 @@ jobs:
         go get -v -t -d ./...
         go get -u zombiezen.com/go/capnproto2/...
       
-    - name: Build
-      run: |
-        capnp compile -I$GOPATH/src/zombiezen.com/go/capnproto2/std -ogo protos/summarydb.capnp
-        go build -v .
-
-    - name: Test
-      run: go test -v .
+    - name: Build and test
+      run: ./run_test.sh
