@@ -51,10 +51,10 @@ func NewMergerIndex() *MergerIndex {
 	return &MergerIndex{indexMap: tree.NewRbTree()}
 }
 
-func (event *MergerIndex) PopulateFromHeap(heap *tree.MinHeap) {
+func (index *MergerIndex) PopulateFromHeap(heap *tree.MinHeap) {
 	for _, entry := range *heap {
 		int64Key := tree.Int64Key(entry.Value)
-		item, ok := event.indexMap.Get(&int64Key)
+		item, ok := index.indexMap.Get(&int64Key)
 		if !ok {
 			continue
 		}
@@ -63,7 +63,7 @@ func (event *MergerIndex) PopulateFromHeap(heap *tree.MinHeap) {
 	}
 }
 
-func (event *MergerIndex) Put(swid int64, cEnd int64) {
+func (index *MergerIndex) Put(swid int64, cEnd int64) {
 	if swid == INVALID_INT64 {
 		return
 	}
@@ -72,37 +72,37 @@ func (event *MergerIndex) Put(swid int64, cEnd int64) {
 		cEnd:     cEnd,
 		heapItem: nil,
 	}
-	event.indexMap.Insert(&key, item)
+	index.indexMap.Insert(&key, item)
 }
 
-func (event *MergerIndex) Remove(swid int64) *MergerIndexItem {
+func (index *MergerIndex) Remove(swid int64) *MergerIndexItem {
 	if swid == INVALID_INT64 {
 		return nil
 	}
 	key := tree.Int64Key(swid)
-	item, ok := event.indexMap.Get(&key)
+	item, ok := index.indexMap.Get(&key)
 	if !ok {
 		return nil
 	}
 	indexItem := item.(*MergerIndexItem)
-	event.indexMap.Delete(&key)
+	index.indexMap.Delete(&key)
 	return indexItem
 }
 
-func (event *MergerIndex) Contains(swid int64) bool {
+func (index *MergerIndex) Contains(swid int64) bool {
 	if swid == INVALID_INT64 {
 		return false
 	}
 	key := tree.Int64Key(swid)
-	return event.indexMap.Exists(&key)
+	return index.indexMap.Exists(&key)
 }
 
-func (event *MergerIndex) GetCStart(swid int64) int64 {
-	if !event.Contains(swid) || swid == INVALID_INT64 {
+func (index *MergerIndex) GetCStart(swid int64) int64 {
+	if !index.Contains(swid) || swid == INVALID_INT64 {
 		return INVALID_INT64
 	}
 	key := tree.Int64Key(swid)
-	_, prevItem := event.indexMap.Lower(&key)
+	_, prevItem := index.indexMap.Lower(&key)
 	if prevItem == nil {
 		return 0
 	}
@@ -110,12 +110,12 @@ func (event *MergerIndex) GetCStart(swid int64) int64 {
 	return indexItem.cEnd + 1
 }
 
-func (event *MergerIndex) GetCEnd(swid int64) int64 {
+func (index *MergerIndex) GetCEnd(swid int64) int64 {
 	if swid == INVALID_INT64 {
 		return INVALID_INT64
 	}
 	key := tree.Int64Key(swid)
-	item, ok := event.indexMap.Get(&key)
+	item, ok := index.indexMap.Get(&key)
 	if !ok {
 		return INVALID_INT64
 	}
@@ -123,45 +123,45 @@ func (event *MergerIndex) GetCEnd(swid int64) int64 {
 	return indexItem.cEnd
 }
 
-func (event *MergerIndex) GetPred(swid int64) int64 {
-	if !event.Contains(swid) || swid == INVALID_INT64 {
+func (index *MergerIndex) GetPred(swid int64) int64 {
+	if !index.Contains(swid) || swid == INVALID_INT64 {
 		return math.MinInt64
 	}
 	key := tree.Int64Key(swid)
-	prevKey, _ := event.indexMap.Lower(&key)
+	prevKey, _ := index.indexMap.Lower(&key)
 	if prevKey == nil {
 		return math.MinInt64
 	}
 	return int64(*prevKey.(*tree.Int64Key))
 }
 
-func (event *MergerIndex) GetSucc(swid int64) int64 {
-	if !event.Contains(swid) || swid == INVALID_INT64 {
+func (index *MergerIndex) GetSucc(swid int64) int64 {
+	if !index.Contains(swid) || swid == INVALID_INT64 {
 		return INVALID_INT64
 	}
 	key := tree.Int64Key(swid)
-	succKey, _ := event.indexMap.Higher(&key)
+	succKey, _ := index.indexMap.Higher(&key)
 	if succKey == nil {
 		return INVALID_INT64
 	}
 	return int64(*succKey.(*tree.Int64Key))
 }
 
-func (event *MergerIndex) GetLastSWID() int64 {
-	if event.indexMap.IsEmpty() {
+func (index *MergerIndex) GetLastSWID() int64 {
+	if index.indexMap.IsEmpty() {
 		return INVALID_INT64
 	}
 
-	maxKey, _ := event.indexMap.Max()
+	maxKey, _ := index.indexMap.Max()
 	return int64(*maxKey.(*tree.Int64Key))
 }
 
-func (event *MergerIndex) UnsetHeapItem(swid int64) *tree.HeapItem {
+func (index *MergerIndex) UnsetHeapItem(swid int64) *tree.HeapItem {
 	if swid == INVALID_INT64 {
 		return nil
 	}
 	key := tree.Int64Key(swid)
-	item, ok := event.indexMap.Get(&key)
+	item, ok := index.indexMap.Get(&key)
 	if !ok {
 		return nil
 	}
@@ -171,12 +171,12 @@ func (event *MergerIndex) UnsetHeapItem(swid int64) *tree.HeapItem {
 	return heapPtr
 }
 
-func (event *MergerIndex) SetHeapItem(swid int64, heapItem *tree.HeapItem) bool {
+func (index *MergerIndex) SetHeapItem(swid int64, heapItem *tree.HeapItem) bool {
 	if swid == INVALID_INT64 {
 		return false
 	}
 	key := tree.Int64Key(swid)
-	item, ok := event.indexMap.Get(&key)
+	item, ok := index.indexMap.Get(&key)
 	if !ok {
 		return ok
 	}
@@ -321,30 +321,30 @@ func (hm *Merger) updatePendingMerges() {
 		w1NewEnd := hm.index.GetCEnd(w2)
 
 		hm.addPendingMerge(w1, w2)
-		oldW2IndexItem := hm.index.Remove(w2)
+		w2RemovedIndexItem := hm.index.Remove(w2)
 		hm.index.Put(w1, w1NewEnd)
 
-		if oldW2IndexItem.heapItem != nil {
-			hm.mergeCounts.Delete(oldW2IndexItem.heapItem)
+		if w2RemovedIndexItem.heapItem != nil {
+			hm.mergeCounts.Delete(w2RemovedIndexItem.heapItem)
 		}
 
-		w0CStart := hm.index.GetCStart(w0)
-		w3CEnd := hm.index.GetCEnd(w3)
+		w0Start := hm.index.GetCStart(w0)
+		w3End := hm.index.GetCEnd(w3)
 
-		hm.updateMergeCountFor(w0, w1, w0CStart, w1NewEnd, hm.numElements)
-		hm.updateMergeCountFor(w0, w3, w1NewStart, w3CEnd, hm.numElements)
+		hm.updateMergeCountFor(w0, w1, w0Start, w1NewEnd, hm.numElements)
+		hm.updateMergeCountFor(w0, w3, w1NewStart, w3End, hm.numElements)
 	}
 }
 
-func (hm *Merger) Process(windowInfo *MergeEvent) {
-	hm.numElements += windowInfo.Size
+func (hm *Merger) Process(mergeEvent *MergeEvent) {
+	hm.numElements += mergeEvent.Size
 	hm.numWindows += 1
 
 	lastWindowId := hm.index.GetLastSWID()
 	cStart := hm.index.GetCStart(lastWindowId)
-	hm.updateMergeCountFor(lastWindowId, windowInfo.Id, cStart, hm.numElements-1, hm.numElements)
+	hm.updateMergeCountFor(lastWindowId, mergeEvent.Id, cStart, hm.numElements-1, hm.numElements)
 
-	hm.index.Put(windowInfo.Id, hm.numElements-1)
+	hm.index.Put(mergeEvent.Id, hm.numElements-1)
 	hm.updatePendingMerges()
 	if hm.numWindows%hm.windowsPerBatch == 0 {
 		hm.issueAllPendingMerges()
@@ -354,22 +354,21 @@ func (hm *Merger) Process(windowInfo *MergeEvent) {
 func (hm *Merger) Run(ctx context.Context, inputCh <-chan *MergeEvent) {
 	for {
 		select {
-
-		case windowInfo := <-inputCh:
-			if windowInfo == ConstShutdownMergeEvent() {
+		case mergeEvent := <-inputCh:
+			if mergeEvent == ConstShutdownMergeEvent() {
 				hm.issueAllPendingMerges()
 				if hm.barrier != nil {
 					hm.barrier.Notify(MERGER)
 				}
 				return
-			} else if windowInfo == ConstFlushMergeEvent() {
+			} else if mergeEvent == ConstFlushMergeEvent() {
 				hm.issueAllPendingMerges()
 				if hm.barrier != nil {
 					hm.barrier.Notify(MERGER)
 				}
 				continue
 			} else {
-				hm.Process(windowInfo)
+				hm.Process(mergeEvent)
 			}
 
 		case <-ctx.Done():
