@@ -259,7 +259,7 @@ func (hm *Merger) addPendingMerge(w0 int64, w1 int64) {
 	if !found {
 		tail = make([]int64, 0)
 	}
-	tail = append(tail, w0)
+	tail = append(tail, w1)
 
 	transitiveTail, found := hm.pendingMerges[w1]
 	if found {
@@ -336,6 +336,21 @@ func (hm *Merger) updatePendingMerges() {
 	}
 }
 
+func (hm *Merger) Process(windowInfo *MergeEvent) {
+	hm.numElements += windowInfo.Size
+	hm.numWindows += 1
+
+	lastWindowId := hm.index.GetLastSWID()
+	cStart := hm.index.GetCStart(lastWindowId)
+	hm.updateMergeCountFor(lastWindowId, windowInfo.Id, cStart, hm.numElements-1, hm.numElements)
+
+	hm.index.Put(windowInfo.Id, hm.numElements-1)
+	hm.updatePendingMerges()
+	if hm.numWindows%hm.windowsPerBatch == 0 {
+		hm.issueAllPendingMerges()
+	}
+}
+
 func (hm *Merger) Run(ctx context.Context, inputCh <-chan *MergeEvent) {
 	for {
 		select {
@@ -354,18 +369,7 @@ func (hm *Merger) Run(ctx context.Context, inputCh <-chan *MergeEvent) {
 				}
 				continue
 			} else {
-				hm.numElements += windowInfo.Size
-				hm.numWindows += 1
-
-				lastWindowId := hm.index.GetLastSWID()
-				cStart := hm.index.GetCStart(lastWindowId)
-				hm.updateMergeCountFor(lastWindowId, windowInfo.Id, cStart, hm.numElements-1, hm.numElements)
-
-				hm.index.Put(windowInfo.Id, hm.numElements-1)
-				hm.updatePendingMerges()
-				if hm.numWindows%hm.windowsPerBatch == 0 {
-					hm.issueAllPendingMerges()
-				}
+				hm.Process(windowInfo)
 			}
 
 		case <-ctx.Done():

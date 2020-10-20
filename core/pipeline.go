@@ -80,7 +80,11 @@ func (p *Pipeline) appendUnbuffered(timestamp int64, value float64) {
 	newWindow := NewSummaryWindow(timestamp, timestamp, p.numElements, p.numElements)
 	p.streamWindowManager.InsertIntoSummaryWindow(newWindow, timestamp, value)
 	p.streamWindowManager.PutSummaryWindow(newWindow)
-	p.writerQueue <- newWindow
+	info := &MergeEvent{
+		Id:   newWindow.TimeStart,
+		Size: newWindow.CountEnd - newWindow.CountStart + 1,
+	}
+	p.merger.Process(info)
 }
 
 func (p *Pipeline) destroyEmptyBuffers() {
