@@ -1,24 +1,19 @@
 package core
 
 import (
-	"context"
 	"github.com/stretchr/testify/assert"
 	"summarydb/storage"
 	"summarydb/window"
 	"testing"
 )
 
-func TestPipeline_Run(t *testing.T) {
-	ctx := context.Background()
-	cancelCtx, cancelFunc := context.WithCancel(ctx)
-
+func TestPipeline_Run_Unbuffered(t *testing.T) {
 	manager := NewStreamWindowManager(0, []string{"count"})
 	backend := storage.NewInMemoryBackend()
 	manager.SetBackingStore(NewBackingStore(backend))
 	windowing := window.NewGenericWindowing(window.NewExponentialLengthsSequence(2))
 	pipeline := NewPipeline(windowing)
 	pipeline.SetWindowManager(manager)
-	pipeline.Run(cancelCtx)
 
 	expectedEvolution := [][]int64{
 		{1},
@@ -40,7 +35,6 @@ func TestPipeline_Run(t *testing.T) {
 
 	for ti := int64(0); ti < int64(len(expectedEvolution)); ti += 1 {
 		pipeline.Append(ti, 0)
-		pipeline.Flush(false, false)
 		expectedAnswer := expectedEvolution[ti]
 		results := make([]int64, 0)
 		summaryWindows := manager.GetSummaryWindowInRange(0, ti)
@@ -51,5 +45,4 @@ func TestPipeline_Run(t *testing.T) {
 
 		assert.Equal(t, expectedAnswer, results)
 	}
-	cancelFunc()
 }
