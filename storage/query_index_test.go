@@ -19,6 +19,13 @@ func TestQueryIndex_GetOverlappingWindowIDs(t *testing.T) {
 	assert.Equal(t, windows, []int64{5, 10, 20})
 }
 
+func TestQueryIndex_GetOverlappingWindowIDs_Empty(t *testing.T) {
+	index := NewQueryIndex()
+	index.Add(int64(0))
+	windows := index.GetOverlappingWindowIDs(0, 1)
+	assert.Equal(t, windows, []int64{0})
+}
+
 func benchmarkGetOverlappingWindowIDs(b *testing.B, count int) {
 	index := NewQueryIndex()
 	for i := 0; i < count; i++ {

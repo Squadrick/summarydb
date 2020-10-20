@@ -50,29 +50,22 @@ func (index *QueryIndex) GetOverlappingWindowIDs(t0 int64, t1 int64) []int64 {
 	t0Key := tree.Int64Key(t0)
 	t1Key := tree.Int64Key(t1)
 	_, l := index.tStarts.Floor(&t0Key)
-	_, r := index.tStarts.Ceiling(&t1Key)
+	if l == nil {
+		_, l = index.tStarts.Min()
+	}
 
-	checkBoundary := func(value interface{}, boundary interface{}, Comp func(int64, int64) bool) bool {
-		bound, ok := boundary.(int64)
-		if ok {
-			return Comp(value.(int64), bound)
-		} else {
-			return false
-		}
-	}
-	checkL := func(value interface{}) bool {
-		return checkBoundary(value, l, func(a int64, b int64) bool { return a >= b })
-	}
-	checkR := func(value interface{}) bool {
-		return checkBoundary(value, r, func(a int64, b int64) bool { return a <= b })
+	_, r := index.tStarts.Ceiling(&t1Key)
+	if r == nil {
+		_, r = index.tStarts.Max()
 	}
 
 	windows := make([]int64, 0, index.GetNumberWindows())
 	index.tStarts.Map(func(key tree.RbKey, i interface{}) bool {
-		if checkL(i) && checkR(i) {
+		value := i.(int64)
+		if value >= l.(int64) && value <= r.(int64) {
 			windows = append(windows, i.(int64))
 			return false
-		} else if !checkR(i) {
+		} else if value > r.(int64) {
 			return true
 		}
 		return false
