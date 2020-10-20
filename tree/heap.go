@@ -15,7 +15,7 @@ func (mh MinHeap) Len() int {
 }
 
 func (mh MinHeap) Less(i, j int) bool {
-	return mh[i].Priority > mh[j].Priority
+	return mh[i].Priority < mh[j].Priority
 }
 
 func (mh MinHeap) Swap(i, j int) {
@@ -43,8 +43,7 @@ func (mh *MinHeap) Pop() interface{} {
 
 func (mh *MinHeap) Top() interface{} {
 	arr := *mh
-	n := len(arr)
-	item := arr[n-1]
+	item := arr[0]
 	return item
 }
 
@@ -52,10 +51,6 @@ func (mh *MinHeap) Update(item *HeapItem, value int64, priority int) {
 	item.Value = value
 	item.Priority = priority
 	heap.Fix(mh, item.Index)
-}
-
-func (mh *MinHeap) Delete(item *HeapItem) {
-	heap.Remove(mh, item.Index)
 }
 
 func NewMinHeap(initSize int) *MinHeap {

@@ -1,33 +1,35 @@
 package tree
 
 import (
+	"container/heap"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
 func TestMinHeap(t *testing.T) {
-	heap := NewMinHeap(10)
+	minHeap := NewMinHeap(10)
 
 	for i := 9; i >= 0; i-- {
 		item := &HeapItem{
 			Value:    int64(i + 10),
 			Priority: i,
 		}
-		heap.Push(item)
+		heap.Push(minHeap, item)
 	}
 
-	itemDel := heap.Top().(*HeapItem)
-	heap.Delete(itemDel)
+	itemDel := minHeap.Top().(*HeapItem)
+	assert.Equal(t, itemDel.Priority, 0)
+	heap.Remove(minHeap, itemDel.Index)
 
-	itemUpdate := heap.Top().(*HeapItem)
-	heap.Update(itemUpdate, 999, itemUpdate.Priority)
-	assert.Equal(t, heap.Top().(*HeapItem).Value, int64(999))
+	itemUpdate := minHeap.Top().(*HeapItem)
+	minHeap.Update(itemUpdate, 999, itemUpdate.Priority)
+	assert.Equal(t, minHeap.Top().(*HeapItem).Value, int64(999))
 
 	for i := 0; i < 10; i++ {
 		if itemDel.Priority == i {
 			continue
 		}
-		item := heap.Pop().(*HeapItem)
+		item := heap.Pop(minHeap).(*HeapItem)
 		assert.Equal(t, item.Priority, i)
 		if i == 1 {
 			assert.Equal(t, item.Value, int64(999))

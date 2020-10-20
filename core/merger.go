@@ -1,6 +1,7 @@
 package core
 
 import (
+	"container/heap"
 	"context"
 	"fmt"
 	"math"
@@ -228,7 +229,7 @@ func (hm *Merger) updateMergeCountFor(w0, w1, c0, c1, n int64) {
 
 	existingEntry := hm.index.UnsetHeapItem(w0)
 	if existingEntry != nil {
-		hm.mergeCounts.Delete(existingEntry)
+		heap.Remove(hm.mergeCounts, existingEntry.Index)
 	}
 
 	newMergeCount, ok := hm.windowing.GetFirstContainingTime(c0, c1, n)
@@ -237,9 +238,9 @@ func (hm *Merger) updateMergeCountFor(w0, w1, c0, c1, n int64) {
 		item := &tree.HeapItem{
 			Value:    w0,
 			Priority: int(newMergeCount),
-			Index:    0,
+			Index:    -1,
 		}
-		hm.mergeCounts.Push(item) // this will set Index in item
+		heap.Push(hm.mergeCounts, item)
 		hm.index.SetHeapItem(w0, item)
 	}
 }
@@ -304,11 +305,10 @@ func (hm *Merger) issueAllPendingMerges() {
 }
 
 func (hm *Merger) updatePendingMerges() {
-	for {
-		if hm.mergeCounts.Len() == 0 {
-			return
-		}
-		minItem := hm.mergeCounts.Pop().(*tree.HeapItem)
+	for hm.mergeCounts.Len() != 0 &&
+		hm.mergeCounts.Top().(*tree.HeapItem).Priority <= int(hm.numElements) {
+
+		minItem := heap.Pop(hm.mergeCounts).(*tree.HeapItem)
 		hm.index.UnsetHeapItem(minItem.Value)
 
 		w1 := minItem.Value
@@ -325,7 +325,7 @@ func (hm *Merger) updatePendingMerges() {
 		hm.index.Put(w1, w1NewEnd)
 
 		if w2RemovedIndexItem.heapItem != nil {
-			hm.mergeCounts.Delete(w2RemovedIndexItem.heapItem)
+			heap.Remove(hm.mergeCounts, w2RemovedIndexItem.heapItem.Index)
 		}
 
 		w0Start := hm.index.GetCStart(w0)
@@ -342,7 +342,9 @@ func (hm *Merger) Process(mergeEvent *MergeEvent) {
 
 	lastWindowId := hm.index.GetLastSWID()
 	cStart := hm.index.GetCStart(lastWindowId)
-	hm.updateMergeCountFor(lastWindowId, mergeEvent.Id, cStart, hm.numElements-1, hm.numElements)
+	if lastWindowId != INVALID_INT64 {
+		hm.updateMergeCountFor(lastWindowId, mergeEvent.Id, cStart, hm.numElements-1, hm.numElements)
+	}
 
 	hm.index.Put(mergeEvent.Id, hm.numElements-1)
 	hm.updatePendingMerges()
