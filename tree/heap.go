@@ -15,7 +15,11 @@ func (mh MinHeap) Len() int {
 }
 
 func (mh MinHeap) Less(i, j int) bool {
-	return mh[i].Priority < mh[j].Priority
+	if mh[i].Priority == mh[j].Priority {
+		return mh[i].Value < mh[j].Value
+	} else {
+		return mh[i].Priority < mh[j].Priority
+	}
 }
 
 func (mh MinHeap) Swap(i, j int) {
