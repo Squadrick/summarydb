@@ -5,6 +5,7 @@ import (
 	"summarydb/storage"
 	"summarydb/window"
 	"testing"
+	"time"
 )
 
 func TestPipeline_Run_Unbuffered(t *testing.T) {
@@ -22,19 +23,21 @@ func TestPipeline_Run_Unbuffered(t *testing.T) {
 		{2, 1, 1},
 		{2, 2, 1},
 		{2, 2, 1, 1},
-		{4, 2, 1},
+		{2, 2, 2, 1}, // {4, 2, 1}
 		{4, 2, 1, 1},
 		{4, 2, 2, 1},
 		{4, 2, 2, 1, 1},
-		{4, 4, 2, 1},
+		{4, 2, 2, 2, 1}, // {4, 4, 2, 1}
 		{4, 4, 2, 1, 1},
 		{4, 4, 2, 2, 1},
 		{4, 4, 2, 2, 1, 1},
-		{8, 4, 2, 1},
+		{4, 4, 2, 2, 2, 1}, // {8, 4, 2, 1}
+		{4, 4, 4, 2, 1, 1},
 	}
 
 	for ti := int64(0); ti < int64(len(expectedEvolution)); ti += 1 {
 		pipeline.Append(ti, 0)
+		time.Sleep(50 * time.Millisecond)
 		expectedAnswer := expectedEvolution[ti]
 		results := make([]int64, 0)
 		summaryWindows := manager.GetSummaryWindowInRange(0, ti)
