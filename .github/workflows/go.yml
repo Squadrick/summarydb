@@ -26,7 +26,9 @@ jobs:
       run: |
         sudo apt install capnproto
         go get -v -t -d ./...
-        go get -u zombiezen.com/go/capnproto2/...
-      
-    - name: Build and test
-      run: ./run_test.sh
+
+    - name: Build
+      run: go build ./...
+
+    - name: Test
+      run: go test -v ./...
