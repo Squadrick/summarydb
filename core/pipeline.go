@@ -160,3 +160,7 @@ func (p *Pipeline) SetBufferSize(totalBufferSize int64, numBuffer int64) {
 		}
 	}
 }
+
+func (p *Pipeline) SetWindowsPerBatch(windowsPerBatch int64) {
+	p.merger.windowsPerBatch = windowsPerBatch
+}
