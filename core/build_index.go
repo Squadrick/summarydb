@@ -5,7 +5,7 @@ import "summarydb/storage"
 // Given empty indices and an existing Backed, we'll populate the indices.
 // We do not persist the index to disk. It will be built when starting the database.
 
-func PopulateIndex(backend storage.Backend,
+func PopulateBackendIndex(backend storage.Backend,
 	summaryIndex *storage.QueryIndex,
 	landmarkIndex *storage.QueryIndex,
 	streamID int64) {

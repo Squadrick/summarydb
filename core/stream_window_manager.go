@@ -36,7 +36,7 @@ func (manager *StreamWindowManager) SetBackingStore(store *BackingStore) {
 }
 
 func (manager *StreamWindowManager) PrimeUp() {
-	PopulateIndex(manager.backingStore.backend,
+	PopulateBackendIndex(manager.backingStore.backend,
 		manager.summaryIndex,
 		manager.landmarkIndex,
 		manager.id)
