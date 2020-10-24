@@ -32,3 +32,12 @@ jobs:
 
     - name: Test
       run: go test -v ./...
+
+    - name: Coverage
+      run: go test -coverprofile cp.out ./...
+
+    - uses: actions/upload-artifact@v2
+      if: success()
+      with:
+        name: coverage-file
+        path: cp.out
