@@ -7,6 +7,7 @@ import (
 	"math"
 	"summarydb/tree"
 	"summarydb/window"
+	"sync"
 )
 
 const bufferSize int = 100
@@ -198,6 +199,7 @@ type Merger struct {
 	numWindows          int64
 	pendingMerges       map[int64][]int64
 	barrier             *Barrier
+	mutex               sync.Mutex
 }
 
 func NewMerger(windowing window.Windowing, windowsPerBatch int64, barrier *Barrier) *Merger {
@@ -211,6 +213,7 @@ func NewMerger(windowing window.Windowing, windowsPerBatch int64, barrier *Barri
 		numElements:         0,
 		pendingMerges:       make(map[int64][]int64),
 		barrier:             barrier,
+		mutex:               sync.Mutex{},
 	}
 }
 
@@ -324,7 +327,7 @@ func (hm *Merger) updatePendingMerges() {
 		w2RemovedIndexItem := hm.index.Remove(w2)
 		hm.index.Put(w1, w1NewEnd)
 
-		if w2RemovedIndexItem.heapItem != nil {
+		if w2RemovedIndexItem != nil && w2RemovedIndexItem.heapItem != nil {
 			heap.Remove(hm.mergeCounts, w2RemovedIndexItem.heapItem.Index)
 		}
 
@@ -337,6 +340,8 @@ func (hm *Merger) updatePendingMerges() {
 }
 
 func (hm *Merger) Process(mergeEvent *MergeEvent) {
+	hm.mutex.Lock()
+	defer hm.mutex.Unlock()
 	hm.numElements += mergeEvent.Size
 	hm.numWindows += 1
 

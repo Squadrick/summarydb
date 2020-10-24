@@ -1,9 +1,15 @@
 package core
 
+import "sync/atomic"
+
+var (
+	IngesterIdCounter int32 = 0
+)
+
 type IngestBuffer struct {
 	Capacity   int64
 	Size       int64
-	id         int64
+	id         int32
 	timestamps []int64
 	values     []float64
 }
@@ -29,9 +35,9 @@ func NewIngestBuffer(capacity int64) *IngestBuffer {
 	return &IngestBuffer{
 		Capacity:   capacity,
 		Size:       0,
-		id:         0, // TODO: use auto-inc atomic here
-		timestamps: make([]int64, 0, capacity),
-		values:     make([]float64, 0, capacity),
+		id:         atomic.AddInt32(&IngesterIdCounter, 1),
+		timestamps: make([]int64, capacity, capacity),
+		values:     make([]float64, capacity, capacity),
 	}
 }
 

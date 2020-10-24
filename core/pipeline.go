@@ -88,11 +88,17 @@ func (p *Pipeline) appendUnbuffered(timestamp int64, value float64) {
 }
 
 func (p *Pipeline) destroyEmptyBuffers() {
-	close(p.emptyBuffers)
-	for buffer := range p.emptyBuffers {
-		buffer.Clear()
+loop:
+	for {
+		select {
+		case buffer := <-p.emptyBuffers:
+			if buffer != nil {
+				buffer.Clear()
+			}
+		default:
+			break loop
+		}
 	}
-	p.emptyBuffers = make(chan *IngestBuffer, QUEUE_SIZE)
 }
 
 func (p *Pipeline) Flush(shutdown bool, setUnbuffered bool) {
@@ -100,17 +106,23 @@ func (p *Pipeline) Flush(shutdown bool, setUnbuffered bool) {
 	p.barrier.Wait(SUMMARIZER)
 
 	if p.bufferSize > 0 {
-		for partialBuffer := range p.partialBuffers {
-			if partialBuffer != nil {
-				p.numElements -= partialBuffer.Size
-				for i := int64(0); i < partialBuffer.Size; i++ {
-					timestamp, _ := partialBuffer.GetTimestamp(i)
-					value, _ := partialBuffer.GetValue(i)
-					p.appendUnbuffered(timestamp, value)
-					p.numElements += 1
+	loop:
+		for {
+			select {
+			case partialBuffer := <-p.partialBuffers:
+				if partialBuffer != nil {
+					p.numElements -= partialBuffer.Size
+					for i := int64(0); i < partialBuffer.Size; i++ {
+						timestamp, _ := partialBuffer.GetTimestamp(i)
+						value, _ := partialBuffer.GetValue(i)
+						p.appendUnbuffered(timestamp, value)
+						p.numElements += 1
+					}
+					partialBuffer.Clear()
+					p.emptyBuffers <- partialBuffer
 				}
-				partialBuffer.Clear()
-				p.emptyBuffers <- partialBuffer
+			default:
+				break loop
 			}
 		}
 	}
