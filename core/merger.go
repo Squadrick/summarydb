@@ -3,7 +3,6 @@ package core
 import (
 	"container/heap"
 	"context"
-	"fmt"
 	"math"
 	"summarydb/tree"
 	"summarydb/window"
@@ -379,7 +378,6 @@ func (hm *Merger) Run(ctx context.Context, inputCh <-chan *MergeEvent) {
 			}
 
 		case <-ctx.Done():
-			fmt.Println("ctx cancelled")
 			// done running this loop
 			return
 		}

@@ -2,7 +2,6 @@ package core
 
 import (
 	"context"
-	"fmt"
 )
 
 type Writer struct {
@@ -45,7 +44,6 @@ func (w *Writer) Run(ctx context.Context, inputCh <-chan *SummaryWindow, outputC
 				outputCh <- info
 			}
 		case <-ctx.Done():
-			fmt.Println("ctx cancelled")
 			return
 		}
 	}
