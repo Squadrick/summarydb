@@ -2,6 +2,7 @@ package storage
 
 import (
 	"encoding/binary"
+	"sync"
 )
 
 func GetStreamLandmarkSegment(landmark bool, streamID int64) []byte {
@@ -62,8 +63,10 @@ type Backend interface {
 }
 
 type InMemoryBackend struct {
-	summaryMap  map[string][]byte
-	landmarkMap map[string][]byte
+	summaryMap       map[string][]byte
+	landmarkMap      map[string][]byte
+	summaryMapMutex  sync.Mutex
+	landmarkMapMutex sync.Mutex
 }
 
 func NewInMemoryBackend() *InMemoryBackend {
@@ -74,26 +77,38 @@ func NewInMemoryBackend() *InMemoryBackend {
 }
 
 func (backend *InMemoryBackend) Get(streamID, windowID int64) []byte {
+	backend.summaryMapMutex.Lock()
+	defer backend.summaryMapMutex.Unlock()
 	return backend.summaryMap[string(GetKey(false, streamID, windowID))]
 }
 
 func (backend *InMemoryBackend) Put(streamID, windowID int64, buf []byte) {
+	backend.summaryMapMutex.Lock()
+	defer backend.summaryMapMutex.Unlock()
 	backend.summaryMap[string(GetKey(false, streamID, windowID))] = buf
 }
 
 func (backend *InMemoryBackend) Delete(streamID, windowID int64) {
+	backend.summaryMapMutex.Lock()
+	defer backend.summaryMapMutex.Unlock()
 	delete(backend.summaryMap, string(GetKey(false, streamID, windowID)))
 }
 
 func (backend *InMemoryBackend) GetLandmark(streamID, windowID int64) []byte {
+	backend.landmarkMapMutex.Lock()
+	defer backend.landmarkMapMutex.Unlock()
 	return backend.landmarkMap[string(GetKey(true, streamID, windowID))]
 }
 
 func (backend *InMemoryBackend) PutLandmark(streamID, windowID int64, buf []byte) {
+	backend.landmarkMapMutex.Lock()
+	defer backend.landmarkMapMutex.Unlock()
 	backend.landmarkMap[string(GetKey(true, streamID, windowID))] = buf
 }
 
 func (backend *InMemoryBackend) DeleteLandmark(streamID, windowID int64) {
+	backend.landmarkMapMutex.Lock()
+	defer backend.landmarkMapMutex.Unlock()
 	delete(backend.landmarkMap, string(GetKey(true, streamID, windowID)))
 }
 

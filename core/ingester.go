@@ -1,6 +1,9 @@
 package core
 
-import "sync/atomic"
+import (
+	"sync"
+	"sync/atomic"
+)
 
 var (
 	IngesterIdCounter int32 = 0
@@ -15,9 +18,13 @@ type IngestBuffer struct {
 }
 
 var shutdownIngestBuffer *IngestBuffer = nil
+var shutdownIngestMutex sync.Mutex
 var flushIngestBuffer *IngestBuffer = nil
+var flushIngestMutex sync.Mutex
 
 func ConstShutdownIngestBuffer() *IngestBuffer {
+	shutdownIngestMutex.Lock()
+	defer shutdownIngestMutex.Unlock()
 	if shutdownIngestBuffer == nil {
 		shutdownIngestBuffer = NewIngestBuffer(0)
 	}
@@ -25,6 +32,8 @@ func ConstShutdownIngestBuffer() *IngestBuffer {
 }
 
 func ConstFlushIngestBuffer() *IngestBuffer {
+	flushIngestMutex.Lock()
+	defer flushIngestMutex.Unlock()
 	if flushIngestBuffer == nil {
 		flushIngestBuffer = NewIngestBuffer(0)
 	}

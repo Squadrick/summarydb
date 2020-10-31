@@ -18,9 +18,13 @@ type MergeEvent struct {
 }
 
 var shutdownMergeEvent *MergeEvent = nil
+var shutdownMergeMutex sync.Mutex
 var flushMergeEvent *MergeEvent = nil
+var flushMergeMutex sync.Mutex
 
 func ConstShutdownMergeEvent() *MergeEvent {
+	shutdownMergeMutex.Lock()
+	defer shutdownMergeMutex.Unlock()
 	if shutdownMergeEvent == nil {
 		shutdownMergeEvent = &MergeEvent{-1, -1}
 	}
@@ -28,6 +32,8 @@ func ConstShutdownMergeEvent() *MergeEvent {
 }
 
 func ConstFlushMergeEvent() *MergeEvent {
+	flushIngestMutex.Lock()
+	defer flushIngestMutex.Unlock()
 	if flushMergeEvent == nil {
 		flushMergeEvent = &MergeEvent{-1, -1}
 	}

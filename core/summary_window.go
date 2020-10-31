@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"sync"
 )
 
 // Window holding a set of summary data structures.
@@ -18,9 +19,13 @@ type SummaryWindow struct {
 }
 
 var shutdownSummaryWindow *SummaryWindow = nil
+var shutdownSummaryWindowMutex sync.Mutex
 var flushSummaryWindow *SummaryWindow = nil
+var flushSummaryWindowMutex sync.Mutex
 
 func ConstShutdownSummaryWindow() *SummaryWindow {
+	shutdownSummaryWindowMutex.Lock()
+	defer shutdownSummaryWindowMutex.Unlock()
 	if shutdownSummaryWindow == nil {
 		shutdownSummaryWindow = NewSummaryWindow(0, 0, 0, 0)
 	}
@@ -28,6 +33,8 @@ func ConstShutdownSummaryWindow() *SummaryWindow {
 }
 
 func ConstFlushSummaryWindow() *SummaryWindow {
+	flushSummaryWindowMutex.Lock()
+	defer flushSummaryWindowMutex.Unlock()
 	if flushSummaryWindow == nil {
 		flushSummaryWindow = NewSummaryWindow(0, 0, 0, 0)
 	}
