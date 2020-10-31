@@ -32,8 +32,8 @@ func ConstShutdownMergeEvent() *MergeEvent {
 }
 
 func ConstFlushMergeEvent() *MergeEvent {
-	flushIngestMutex.Lock()
-	defer flushIngestMutex.Unlock()
+	flushMergeMutex.Lock()
+	defer flushMergeMutex.Unlock()
 	if flushMergeEvent == nil {
 		flushMergeEvent = &MergeEvent{-1, -1}
 	}
