@@ -16,16 +16,16 @@ var ExpectedEvolution = [][]int64{
 	{2, 1, 1},
 	{2, 2, 1},
 	{2, 2, 1, 1},
-	{2, 2, 2, 1}, // {4, 2, 1}
+	{4, 2, 1},
 	{4, 2, 1, 1},
 	{4, 2, 2, 1},
 	{4, 2, 2, 1, 1},
-	{4, 2, 2, 2, 1}, // {4, 4, 2, 1}
+	{4, 4, 2, 1},
 	{4, 4, 2, 1, 1},
 	{4, 4, 2, 2, 1},
 	{4, 4, 2, 2, 1, 1},
-	{4, 4, 2, 2, 2, 1}, // {8, 4, 2, 1}
-	{4, 4, 4, 2, 1, 1},
+	{8, 4, 2, 1},
+	{8, 4, 2, 1, 1},
 }
 
 func TestPipeline_Run_Unbuffered(t *testing.T) {
@@ -46,7 +46,6 @@ func TestPipeline_Run_Unbuffered(t *testing.T) {
 		for _, summaryWindow := range summaryWindows {
 			results = append(results, int64(summaryWindow.Data.Count.Value))
 		}
-
 		assert.Equal(t, expectedAnswer, results)
 	}
 }

@@ -228,14 +228,14 @@ func (hm *Merger) SetWindowManager(manager *StreamWindowManager) {
 }
 
 // Given consecutive windows w0, w1 which together span the count [c0, c1],
-// set mergeCounts[(w0, w1)] = first n' >= n such that (w0, w1) will need to
+// set mergeCounts[w] = first n' >= n such that (w, w_next) will need to
 // merged after n' elements have been inserted.
-func (hm *Merger) updateMergeCountFor(w0, w1, c0, c1, n int64) {
-	if w0 == InvalidInt64 || w1 == InvalidInt64 || c0 == InvalidInt64 || c1 == InvalidInt64 {
+func (hm *Merger) updateMergeCountFor(w, c0, c1, n int64) {
+	if w == InvalidInt64 || c0 == InvalidInt64 || c1 == InvalidInt64 {
 		return
 	}
 
-	existingEntry := hm.index.UnsetHeapItem(w0)
+	existingEntry := hm.index.UnsetHeapItem(w)
 	if existingEntry != nil {
 		heap.Remove(hm.mergeCounts, existingEntry.Index)
 	}
@@ -244,12 +244,12 @@ func (hm *Merger) updateMergeCountFor(w0, w1, c0, c1, n int64) {
 
 	if ok {
 		item := &tree.HeapItem{
-			Value:    w0,
+			Value:    w,
 			Priority: int(newMergeCount),
 			Index:    -1,
 		}
 		heap.Push(hm.mergeCounts, item)
-		hm.index.SetHeapItem(w0, item)
+		hm.index.SetHeapItem(w, item)
 	}
 }
 
@@ -339,8 +339,8 @@ func (hm *Merger) updatePendingMerges() {
 		w0Start := hm.index.GetCStart(w0)
 		w3End := hm.index.GetCEnd(w3)
 
-		hm.updateMergeCountFor(w0, w1, w0Start, w1NewEnd, hm.numElements)
-		hm.updateMergeCountFor(w0, w3, w1NewStart, w3End, hm.numElements)
+		hm.updateMergeCountFor(w0, w0Start, w1NewEnd, hm.numElements)
+		hm.updateMergeCountFor(w1, w1NewStart, w3End, hm.numElements)
 	}
 }
 
@@ -353,7 +353,7 @@ func (hm *Merger) Process(mergeEvent *MergeEvent) {
 	lastWindowId := hm.index.GetLastSWID()
 	cStart := hm.index.GetCStart(lastWindowId)
 	if lastWindowId != InvalidInt64 {
-		hm.updateMergeCountFor(lastWindowId, mergeEvent.Id, cStart, hm.numElements-1, hm.numElements)
+		hm.updateMergeCountFor(lastWindowId, cStart, hm.numElements-1, hm.numElements)
 	}
 
 	hm.index.Put(mergeEvent.Id, hm.numElements-1)
