@@ -15,7 +15,7 @@ func NewCountOp() *CountOp {
 	}
 }
 
-func (op *CountOp) Apply(retData, aggData *DataTable, insertValue float64, ts int64) {
+func (op *CountOp) Apply(retData, aggData *DataTable, _ float64, _ int64) {
 	retData.Count.Value = aggData.Count.Value + 1
 }
 

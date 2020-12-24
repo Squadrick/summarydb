@@ -5,7 +5,7 @@ import (
 	"summarydb/window"
 )
 
-const QUEUE_SIZE = 100
+const QueueSize = 100
 
 type Pipeline struct {
 	streamWindowManager *StreamWindowManager
@@ -27,11 +27,11 @@ type Pipeline struct {
 }
 
 func NewPipeline(windowing window.Windowing) *Pipeline {
-	emptyBuffers := make(chan *IngestBuffer, QUEUE_SIZE)
-	partialBuffers := make(chan *IngestBuffer, QUEUE_SIZE)
-	summarizerQueue := make(chan *IngestBuffer, QUEUE_SIZE)
-	writerQueue := make(chan *SummaryWindow, QUEUE_SIZE)
-	mergerQueue := make(chan *MergeEvent, QUEUE_SIZE)
+	emptyBuffers := make(chan *IngestBuffer, QueueSize)
+	partialBuffers := make(chan *IngestBuffer, QueueSize)
+	summarizerQueue := make(chan *IngestBuffer, QueueSize)
+	writerQueue := make(chan *SummaryWindow, QueueSize)
+	mergerQueue := make(chan *MergeEvent, QueueSize)
 	barrier := NewBarrier()
 	pipeline := &Pipeline{
 		streamWindowManager: nil,

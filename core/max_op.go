@@ -15,7 +15,7 @@ func NewMaxOp() *MaxOp {
 	}
 }
 
-func (op *MaxOp) Apply(retData, aggData *DataTable, insertValue float64, ts int64) {
+func (op *MaxOp) Apply(retData, aggData *DataTable, insertValue float64, _ int64) {
 	retData.Max.Value = math.Max(aggData.Max.Value, insertValue)
 }
 
@@ -35,7 +35,7 @@ func (op *MaxOp) EmptyQuery() *AggResult {
 func (op *MaxOp) Query(windows []SummaryWindow,
 	landmarkWindows []LandmarkWindow,
 	t0 int64, t1 int64,
-	params *QueryParams) *AggResult {
+	_ *QueryParams) *AggResult {
 
 	aggResult := op.EmptyQuery()
 

@@ -24,7 +24,7 @@ import (
 // Initially, we have R windows each of size S
 // Each consequent step will increase both the size of the window, and number of windows
 // We use p to denote the exponential rate of increase of number of windows (R)
-// We use q to denate the exponential rate of increase of window size (S)
+// We use q to denote the exponential rate of increase of window size (S)
 // The exact sequence:
 //		(R)           windows of size (S)
 //		(R * 2^(p-1)) windows of size (S * 2^q)
