@@ -158,6 +158,24 @@ func (store *BackingStore) Delete(streamID, windowID int64) {
 	store.backend.Delete(streamID, windowID)
 }
 
+func (store *BackingStore) MergeWindows(
+	streamID int64,
+	mergedWindow *SummaryWindow,
+	deletedWindowIDs []int64) {
+	store.summaryCache.Set(
+		storage.GetKey(false, streamID, mergedWindow.Id()),
+		mergedWindow,
+		1)
+
+	for _, swid := range deletedWindowIDs {
+		store.summaryCache.Del(storage.GetKey(false, streamID, swid))
+	}
+
+	buf := SummaryWindowToBytes(mergedWindow)
+	store.backend.Merge(
+		streamID, mergedWindow.Id(), buf, deletedWindowIDs)
+}
+
 func (store *BackingStore) GetLandmark(streamID, windowID int64) *LandmarkWindow {
 	window, found := store.landmarkCache.Get(storage.GetKey(true, streamID, windowID))
 	if found {

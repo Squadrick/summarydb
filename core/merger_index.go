@@ -158,4 +158,3 @@ func (index *MergerIndex) SetHeapItem(swid int64, heapItem *tree.HeapItem) bool 
 	indexItem.heapItem = heapItem
 	return true
 }
-

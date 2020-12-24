@@ -94,6 +94,39 @@ func (backend *BadgerBackend) Delete(streamID, windowID int64) {
 	backend.txnDelete(key)
 }
 
+func (backend *BadgerBackend) Merge(
+	streamID int64,
+	windowID int64,
+	buf []byte,
+	deletedIDs []int64) {
+
+	key := GetKey(false, streamID, windowID)
+	delKeys := make([][]byte, len(deletedIDs))
+
+	for i, ID := range deletedIDs {
+		delKeys[i] = GetKey(false, streamID, ID)
+	}
+
+	err := backend.db.Update(func(txn *badger.Txn) error {
+		err := txn.Set(key, buf)
+		if err != nil {
+			return err
+		}
+
+		for _, delKey := range delKeys {
+			err := txn.Delete(delKey)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
 func (backend *BadgerBackend) GetLandmark(streamID, windowID int64) []byte {
 	key := GetKey(true, streamID, windowID)
 	return backend.txnGet(key)

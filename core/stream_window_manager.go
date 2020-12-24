@@ -98,6 +98,21 @@ func (manager *StreamWindowManager) DeleteSummaryWindow(swid int64) {
 	manager.backingStore.Delete(manager.id, swid)
 }
 
+func (manager *StreamWindowManager) UpdateMergeSummaryWindows(
+	mergedWindow *SummaryWindow,
+	deletedWindowIDs []int64) {
+	// insert `mergedWindow` and delete all `deletedSwids`.
+	manager.summaryIndex.Add(mergedWindow.Id())
+	for _, swid := range deletedWindowIDs {
+		manager.summaryIndex.Remove(swid)
+	}
+
+	manager.backingStore.MergeWindows(
+		manager.id,
+		mergedWindow,
+		deletedWindowIDs)
+}
+
 func (manager *StreamWindowManager) NumSummaryWindows() int {
 	return manager.summaryIndex.GetNumberWindows()
 }

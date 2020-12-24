@@ -121,3 +121,35 @@ func TestPipeline_Run(t *testing.T) {
 	assert.Equal(t, expectedAnswer, results)
 	cancelFunc()
 }
+
+func TestPipeline_RunWithBadger(t *testing.T) {
+	manager := NewStreamWindowManager(0, []string{"count"})
+	backend := storage.NewBadgerBacked(storage.TestBadgerBackendConfig())
+	manager.SetBackingStore(NewBackingStore(backend))
+	windowing := window.NewGenericWindowing(window.NewExponentialLengthsSequence(2))
+	pipeline := NewPipeline(windowing)
+	pipeline.SetBufferSize(8, 4)
+	pipeline.SetWindowsPerBatch(2)
+	pipeline.SetWindowManager(manager)
+
+	ctx := context.Background()
+	cancelCtx, cancelFunc := context.WithCancel(ctx)
+	pipeline.Run(cancelCtx)
+
+	for ti := int64(0); ti < int64(len(ExpectedEvolution)); ti += 1 {
+		pipeline.Append(ti, 0)
+	}
+
+	pipeline.Flush(true, true)
+	time.Sleep(50 * time.Millisecond)
+	tl := int64(len(ExpectedEvolution) - 1)
+	expectedAnswer := ExpectedEvolution[tl]
+	results := make([]int64, 0)
+	summaryWindows := manager.GetSummaryWindowInRange(0, tl)
+
+	for _, summaryWindow := range summaryWindows {
+		results = append(results, int64(summaryWindow.Data.Count.Value))
+	}
+	assert.Equal(t, expectedAnswer, results)
+	cancelFunc()
+}

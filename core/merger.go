@@ -139,13 +139,9 @@ func (hm *Merger) issuePendingMerge(head int64, tail []int64) {
 	}
 
 	mergedWindow := hm.streamWindowManager.MergeSummaryWindows(windows)
-	hm.streamWindowManager.PutSummaryWindow(mergedWindow)
 
-	for _, swid := range tail {
-		// `head` already exists in storage, because the storage key
-		// for `mergedWindow` and `head` is the same (TimeStart).
-		hm.streamWindowManager.DeleteSummaryWindow(swid)
-	}
+	// This writes the updated windows to cache/index/disk in a single commit.
+	hm.streamWindowManager.UpdateMergeSummaryWindows(mergedWindow, tail)
 }
 
 func (hm *Merger) issueAllPendingMerges() {

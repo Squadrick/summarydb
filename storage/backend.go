@@ -52,6 +52,7 @@ type Backend interface {
 	Get(int64, int64) []byte
 	Put(int64, int64, []byte)
 	Delete(int64, int64)
+	Merge(int64, int64, []byte, []int64)
 
 	GetLandmark(int64, int64) []byte
 	PutLandmark(int64, int64, []byte)
@@ -92,6 +93,18 @@ func (backend *InMemoryBackend) Delete(streamID, windowID int64) {
 	backend.summaryMapMutex.Lock()
 	defer backend.summaryMapMutex.Unlock()
 	delete(backend.summaryMap, string(GetKey(false, streamID, windowID)))
+}
+
+func (backend *InMemoryBackend) Merge(
+	streamID int64,
+	windowID int64,
+	buf []byte,
+	deletedIDs []int64) {
+
+	backend.Put(streamID, windowID, buf)
+	for _, ID := range deletedIDs {
+		backend.Delete(streamID, ID)
+	}
 }
 
 func (backend *InMemoryBackend) GetLandmark(streamID, windowID int64) []byte {
