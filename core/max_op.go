@@ -32,8 +32,8 @@ func (op *MaxOp) EmptyQuery() *AggResult {
 	}
 }
 
-func (op *MaxOp) Query(windows []SummaryWindow,
-	landmarkWindows []LandmarkWindow,
+func (op *MaxOp) Query(windows []*SummaryWindow,
+	landmarkWindows []*LandmarkWindow,
 	t0 int64, t1 int64,
 	_ *QueryParams) *AggResult {
 

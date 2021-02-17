@@ -31,8 +31,8 @@ func TestCountOp_Merge(t *testing.T) {
 }
 
 func TestCountOp_Query(t *testing.T) {
-	summaryWindows := make([]SummaryWindow, 0)
-	landmarkWindows := make([]LandmarkWindow, 0)
+	summaryWindows := make([]*SummaryWindow, 0)
+	landmarkWindows := make([]*LandmarkWindow, 0)
 
 	for i := int64(0); i < 5; i++ {
 		if i == 2 {
@@ -40,7 +40,7 @@ func TestCountOp_Query(t *testing.T) {
 		}
 		summaryWindow := NewSummaryWindow(i*5, (i+1)*5-1, i, i+1)
 		summaryWindow.Data.Count.Value = 1
-		summaryWindows = append(summaryWindows, *summaryWindow)
+		summaryWindows = append(summaryWindows, summaryWindow)
 	}
 
 	landmarkWindow1 := NewLandmarkWindow(2)
@@ -53,7 +53,7 @@ func TestCountOp_Query(t *testing.T) {
 	landmarkWindow2.Insert(8, 1.0)
 	landmarkWindow2.Close(9)
 
-	landmarkWindows = append(landmarkWindows, *landmarkWindow1, *landmarkWindow2)
+	landmarkWindows = append(landmarkWindows, landmarkWindow1, landmarkWindow2)
 
 	op := NewCountOp()
 	queryParams := &QueryParams{

@@ -32,8 +32,8 @@ func (wi *WindowInfo) SetLengthAndOverlap(t0 int64, t1 int64) {
 }
 
 func GetSumStats(t0, t1 int64,
-	summaryWindows []SummaryWindow,
-	landmarkWindows []LandmarkWindow,
+	summaryWindows []*SummaryWindow,
+	landmarkWindows []*LandmarkWindow,
 	getData func(table *DataTable) float64) (*stats.Bounds, *stats.Stats) {
 	firstWindow := NewWindowInfo()
 	lastWindow := NewWindowInfo()
@@ -45,10 +45,10 @@ func GetSumStats(t0, t1 int64,
 	for i, window := range summaryWindows {
 		value := getData(window.Data)
 		if i == 0 {
-			firstWindow.SetValues(&window, value)
+			firstWindow.SetValues(window, value)
 		}
 		if i == nDecayedWindows-1 {
-			lastWindow.SetValues(&window, value)
+			lastWindow.SetValues(window, value)
 		}
 		totalSum += value
 	}

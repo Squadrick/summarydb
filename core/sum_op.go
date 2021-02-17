@@ -33,8 +33,8 @@ func (op *SumOp) EmptyQuery() *AggResult {
 }
 
 // TODO: Add stream statistics, and get SDMultiplier
-func (op *SumOp) Query(windows []SummaryWindow,
-	landmarkWindows []LandmarkWindow,
+func (op *SumOp) Query(windows []*SummaryWindow,
+	landmarkWindows []*LandmarkWindow,
 	t0 int64, t1 int64,
 	params *QueryParams) *AggResult {
 

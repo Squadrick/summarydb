@@ -123,16 +123,16 @@ func (manager *StreamWindowManager) GetLandmarkWindow(lwid int64) *LandmarkWindo
 	return manager.backingStore.GetLandmark(manager.id, lwid)
 }
 
-func (manager *StreamWindowManager) GetLandmarkWindowInRange(t0, t1 int64) []LandmarkWindow {
+func (manager *StreamWindowManager) GetLandmarkWindowInRange(t0, t1 int64) []*LandmarkWindow {
 	ids := manager.landmarkIndex.GetOverlappingWindowIDs(t0, t1)
-	landmarkWindows := make([]LandmarkWindow, 0, len(ids))
+	landmarkWindows := make([]*LandmarkWindow, 0, len(ids))
 
 	for _, id := range ids {
 		window := manager.GetLandmarkWindow(id)
 		if window.TimeEnd < t0 {
 			continue
 		}
-		landmarkWindows = append(landmarkWindows, *manager.GetLandmarkWindow(id))
+		landmarkWindows = append(landmarkWindows, manager.GetLandmarkWindow(id))
 	}
 	return landmarkWindows
 }

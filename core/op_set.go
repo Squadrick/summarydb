@@ -13,15 +13,24 @@ func GetOpFromName(opName string) Op {
 }
 
 type OpSet struct {
-	ops []Op
+	ops map[string]Op
 }
 
 func NewOpSet(operatorNames []string) *OpSet {
-	ops := make([]Op, len(operatorNames))
-	for i, operatorName := range operatorNames {
-		ops[i] = GetOpFromName(operatorName)
+	ops := make(map[string]Op)
+	for _, operatorName := range operatorNames {
+		op := GetOpFromName(operatorName)
+		if op == nil {
+			// invalid op
+			continue
+		}
+		ops[operatorName] = GetOpFromName(operatorName)
 	}
 	return &OpSet{ops: ops}
+}
+
+func (set *OpSet) GetOp(operatorName string) Op {
+	return set.ops[operatorName]
 }
 
 func (set *OpSet) Insert(data *DataTable, value float64, ts int64) {
