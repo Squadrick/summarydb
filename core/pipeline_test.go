@@ -9,6 +9,7 @@ import (
 	"time"
 )
 
+// 31 time steps
 var ExpectedEvolution = [][]int64{
 	{1},
 	{1, 1},
@@ -33,6 +34,14 @@ var ExpectedEvolution = [][]int64{
 	{8, 4, 4, 2, 2, 1},
 	{8, 4, 4, 2, 2, 1, 1},
 	{8, 8, 4, 2, 1},
+	{8, 8, 4, 2, 1, 1},
+	{8, 8, 4, 2, 2, 1},
+	{8, 8, 4, 2, 2, 1, 1},
+	{8, 8, 4, 4, 2, 1},
+	{8, 8, 4, 4, 2, 1, 1},
+	{8, 8, 4, 4, 2, 2, 1},
+	{8, 8, 4, 4, 2, 2, 1, 1},
+	{16, 8, 4, 2, 1},
 }
 
 func TestPipeline_EachStep_Unbuffered(t *testing.T) {
