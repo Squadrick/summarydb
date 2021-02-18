@@ -35,7 +35,7 @@ var ExpectedEvolution = [][]int64{
 	{8, 8, 4, 2, 1},
 }
 
-func TestPipeline_Run_Unbuffered(t *testing.T) {
+func TestPipeline_EachStep_Unbuffered(t *testing.T) {
 	manager := NewStreamWindowManager(0, []string{"count"})
 	backend := storage.NewInMemoryBackend()
 	manager.SetBackingStore(NewBackingStore(backend))
@@ -57,7 +57,7 @@ func TestPipeline_Run_Unbuffered(t *testing.T) {
 	}
 }
 
-func TestPipeline_Run_Buffered(t *testing.T) {
+func TestPipeline_EachStep_Buffered(t *testing.T) {
 	manager := NewStreamWindowManager(0, []string{"count"})
 	backend := storage.NewInMemoryBackend()
 	manager.SetBackingStore(NewBackingStore(backend))
@@ -90,9 +90,8 @@ func TestPipeline_Run_Buffered(t *testing.T) {
 	cancelFunc()
 }
 
-func TestPipeline_Run(t *testing.T) {
+func testPipelineFinalStep(t *testing.T, backend storage.Backend) {
 	manager := NewStreamWindowManager(0, []string{"count"})
-	backend := storage.NewInMemoryBackend()
 	manager.SetBackingStore(NewBackingStore(backend))
 	windowing := window.NewGenericWindowing(window.NewExponentialLengthsSequence(2))
 	pipeline := NewPipeline(windowing)
@@ -122,34 +121,12 @@ func TestPipeline_Run(t *testing.T) {
 	cancelFunc()
 }
 
-func TestPipeline_RunWithBadger(t *testing.T) {
-	manager := NewStreamWindowManager(0, []string{"count"})
+func TestPipeline_Run_Memory(t *testing.T) {
+	backend := storage.NewInMemoryBackend()
+	testPipelineFinalStep(t, backend)
+}
+
+func TestPipeline_Run_Badger(t *testing.T) {
 	backend := storage.NewBadgerBacked(storage.TestBadgerBackendConfig())
-	manager.SetBackingStore(NewBackingStore(backend))
-	windowing := window.NewGenericWindowing(window.NewExponentialLengthsSequence(2))
-	pipeline := NewPipeline(windowing)
-	pipeline.SetBufferSize(8, 4)
-	pipeline.SetWindowsPerBatch(2)
-	pipeline.SetWindowManager(manager)
-
-	ctx := context.Background()
-	cancelCtx, cancelFunc := context.WithCancel(ctx)
-	pipeline.Run(cancelCtx)
-
-	for ti := int64(0); ti < int64(len(ExpectedEvolution)); ti += 1 {
-		pipeline.Append(ti, 0)
-	}
-
-	pipeline.Flush(true, true)
-	time.Sleep(50 * time.Millisecond)
-	tl := int64(len(ExpectedEvolution) - 1)
-	expectedAnswer := ExpectedEvolution[tl]
-	results := make([]int64, 0)
-	summaryWindows := manager.GetSummaryWindowInRange(0, tl)
-
-	for _, summaryWindow := range summaryWindows {
-		results = append(results, int64(summaryWindow.Data.Count.Value))
-	}
-	assert.Equal(t, expectedAnswer, results)
-	cancelFunc()
+	testPipelineFinalStep(t, backend)
 }
