@@ -5,14 +5,17 @@ import (
 	"sync"
 )
 
+func BitSet(cond bool) byte {
+	if cond {
+		return 1
+	}
+	return 0
+}
+
 func GetStreamLandmarkSegment(landmark bool, streamID int64) []byte {
 	buf := make([]byte, 9)
 	binary.LittleEndian.PutUint64(buf[:8], uint64(streamID))
-	if landmark {
-		buf[8] = 1
-	} else {
-		buf[8] = 0
-	}
+	buf[8] = BitSet(landmark)
 	return buf
 }
 
@@ -21,11 +24,7 @@ func GetKey(landmark bool, streamID, windowID int64) []byte {
 
 	// <8-bits stream ID> <1-bit for landmark> <8-bits for window ID>
 	binary.LittleEndian.PutUint64(buf[:8], uint64(streamID))
-	if landmark {
-		buf[8] = 1
-	} else {
-		buf[8] = 0
-	}
+	buf[8] = BitSet(landmark)
 	binary.LittleEndian.PutUint64(buf[9:], uint64(windowID))
 
 	return buf
@@ -40,12 +39,7 @@ func GetWindowIDFromKey(buf []byte) int64 {
 }
 
 func GetLandmarkFromKey(buf []byte) bool {
-	lBit := buf[8]
-	if lBit == 1 {
-		return true
-	} else {
-		return false
-	}
+	return buf[8] == 1
 }
 
 type Backend interface {
