@@ -145,10 +145,15 @@ func (hm *Merger) issuePendingMerge(head int64, tail []int64) {
 }
 
 func (hm *Merger) issueAllPendingMerges() {
-	// TODO: Parallelize this using a worker pool, let num workers be a param.
+	var wg sync.WaitGroup
 	for head, tail := range hm.pendingMerges {
-		hm.issuePendingMerge(head, tail)
+		wg.Add(1)
+		go func(h int64, t []int64) {
+			hm.issuePendingMerge(h, t)
+			wg.Done()
+		}(head, tail)
 	}
+	wg.Wait()
 
 	// clear pending merges
 	hm.pendingMerges = make(map[int64][]int64)
