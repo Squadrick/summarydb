@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"github.com/stretchr/testify/assert"
+	"strconv"
 	"summarydb/storage"
 	"summarydb/window"
 	"testing"
@@ -138,4 +139,61 @@ func TestPipeline_Run_Memory(t *testing.T) {
 func TestPipeline_Run_Badger(t *testing.T) {
 	backend := storage.NewBadgerBacked(storage.TestBadgerBackendConfig())
 	testPipelineFinalStep(t, backend)
+}
+
+// Benchmarks here
+
+func benchmarkPipeline(b *testing.B,
+	windowing window.Windowing,
+	totalBufferSize int64,
+	numBuffers int64,
+	windowsPerBatch int64) {
+	manager := NewStreamWindowManager(0, []string{"count"})
+	backend := storage.NewBadgerBacked(storage.TestBadgerBackendConfig())
+	manager.SetBackingStore(NewBackingStore(backend))
+	pipeline := NewPipeline(windowing)
+	pipeline.SetBufferSize(totalBufferSize, numBuffers)
+	pipeline.SetWindowsPerBatch(windowsPerBatch)
+	pipeline.SetWindowManager(manager)
+
+	ctx := context.Background()
+	cancelCtx, cancelFunc := context.WithCancel(ctx)
+	pipeline.Run(cancelCtx)
+
+	for n := 0; n < b.N; n++ {
+		pipeline.Append(int64(n), float64(n))
+	}
+
+	pipeline.Flush(true, true)
+	cancelFunc()
+}
+
+func benchmarkPipelineLoop(b *testing.B, windowing window.Windowing) {
+	limit := 4
+	for totalBufferSize := 4; totalBufferSize <= 64; totalBufferSize *= 4 {
+		for numBuffer := 1; numBuffer <= limit; numBuffer *= 2 {
+			for windowsPerBatch := 1; windowsPerBatch <= limit; windowsPerBatch *= 2 {
+				name := strconv.Itoa(totalBufferSize) + "/" + strconv.Itoa(numBuffer) + "/" + strconv.Itoa(windowsPerBatch)
+				b.Run(name, func(b *testing.B) {
+					// window size = totalBufferSize / numBuffer
+					benchmarkPipeline(b,
+						windowing,
+						int64(totalBufferSize),
+						int64(numBuffer),
+						int64(windowsPerBatch))
+				})
+			}
+		}
+	}
+}
+
+func BenchmarkPipeline_Exp(b *testing.B) {
+	windowing := window.NewGenericWindowing(window.NewExponentialLengthsSequence(2))
+	benchmarkPipelineLoop(b, windowing)
+}
+
+func BenchmarkPipeline_Power(b *testing.B) {
+	// root N growth
+	windowing := window.NewPowerWindowing(1, 1, 10, 1)
+	benchmarkPipelineLoop(b, windowing)
 }
