@@ -7,7 +7,6 @@ import (
 	"summarydb/storage"
 	"summarydb/window"
 	"testing"
-	"time"
 )
 
 // 31 time steps
@@ -48,14 +47,14 @@ var ExpectedEvolution = [][]int64{
 func TestPipeline_EachStep_Unbuffered(t *testing.T) {
 	manager := NewStreamWindowManager(0, []string{"count"})
 	backend := storage.NewInMemoryBackend()
-	manager.SetBackingStore(NewBackingStore(backend))
+	manager.SetBackingStore(NewBackingStore(backend, false))
 	windowing := window.NewGenericWindowing(window.NewExponentialLengthsSequence(2))
-	pipeline := NewPipeline(windowing)
-	pipeline.SetWindowManager(manager)
+	pipeline := NewPipeline(windowing).
+		SetWindowManager(manager).
+		SetUnbuffered()
 
 	for ti := int64(0); ti < int64(len(ExpectedEvolution)); ti += 1 {
 		pipeline.Append(ti, 0)
-		time.Sleep(50 * time.Millisecond)
 		expectedAnswer := ExpectedEvolution[ti]
 		results := make([]int64, 0)
 		summaryWindows := manager.GetSummaryWindowInRange(0, ti)
@@ -70,12 +69,12 @@ func TestPipeline_EachStep_Unbuffered(t *testing.T) {
 func TestPipeline_EachStep_Buffered(t *testing.T) {
 	manager := NewStreamWindowManager(0, []string{"count"})
 	backend := storage.NewInMemoryBackend()
-	manager.SetBackingStore(NewBackingStore(backend))
+	manager.SetBackingStore(NewBackingStore(backend, false))
 	windowing := window.NewGenericWindowing(window.NewExponentialLengthsSequence(2))
-	pipeline := NewPipeline(windowing)
-	pipeline.SetBufferSize(4, 4)
-	pipeline.SetWindowsPerBatch(2)
-	pipeline.SetWindowManager(manager)
+	pipeline := NewPipeline(windowing).
+		SetBufferSize(31 /*4 windows*/).
+		SetWindowsPerMerge(2).
+		SetWindowManager(manager)
 
 	ctx := context.Background()
 	cancelCtx, cancelFunc := context.WithCancel(ctx)
@@ -83,8 +82,8 @@ func TestPipeline_EachStep_Buffered(t *testing.T) {
 
 	for ti := int64(0); ti < int64(len(ExpectedEvolution)); ti += 1 {
 		pipeline.Append(ti, 0)
-		pipeline.Flush(false, false)
-		time.Sleep(50 * time.Millisecond)
+		pipeline.Flush(false)
+		//time.Sleep(50 * time.Millisecond)
 		expectedAnswer := ExpectedEvolution[ti]
 		results := make([]int64, 0)
 		summaryWindows := manager.GetSummaryWindowInRange(0, ti)
@@ -102,12 +101,12 @@ func TestPipeline_EachStep_Buffered(t *testing.T) {
 
 func testPipelineFinalStep(t *testing.T, backend storage.Backend) {
 	manager := NewStreamWindowManager(0, []string{"count"})
-	manager.SetBackingStore(NewBackingStore(backend))
+	manager.SetBackingStore(NewBackingStore(backend, false))
 	windowing := window.NewGenericWindowing(window.NewExponentialLengthsSequence(2))
-	pipeline := NewPipeline(windowing)
-	pipeline.SetBufferSize(8, 4)
-	pipeline.SetWindowsPerBatch(2)
-	pipeline.SetWindowManager(manager)
+	pipeline := NewPipeline(windowing).
+		SetBufferSize(50).
+		SetWindowsPerMerge(2).
+		SetWindowManager(manager)
 
 	ctx := context.Background()
 	cancelCtx, cancelFunc := context.WithCancel(ctx)
@@ -117,8 +116,7 @@ func testPipelineFinalStep(t *testing.T, backend storage.Backend) {
 		pipeline.Append(ti, 0)
 	}
 
-	pipeline.Flush(true, true)
-	time.Sleep(50 * time.Millisecond)
+	pipeline.Flush(true)
 	tl := int64(len(ExpectedEvolution) - 1)
 	expectedAnswer := ExpectedEvolution[tl]
 	results := make([]int64, 0)
@@ -150,10 +148,11 @@ func benchmarkPipeline(b *testing.B,
 	windowsPerBatch int64) {
 	manager := NewStreamWindowManager(0, []string{"count"})
 	backend := storage.NewBadgerBacked(storage.TestBadgerBackendConfig())
-	manager.SetBackingStore(NewBackingStore(backend))
-	pipeline := NewPipeline(windowing)
-	pipeline.SetBufferSize(totalBufferSize, numBuffers)
-	pipeline.SetWindowsPerBatch(windowsPerBatch)
+	manager.SetBackingStore(NewBackingStore(backend, true))
+	pipeline := NewPipeline(windowing).
+		SetBufferSize(totalBufferSize).
+		SetWindowsPerMerge(windowsPerBatch).
+		SetWindowManager(manager)
 	pipeline.SetWindowManager(manager)
 
 	ctx := context.Background()
@@ -164,7 +163,7 @@ func benchmarkPipeline(b *testing.B,
 		pipeline.Append(int64(n), float64(n))
 	}
 
-	pipeline.Flush(true, true)
+	pipeline.Flush(true)
 	cancelFunc()
 }
 

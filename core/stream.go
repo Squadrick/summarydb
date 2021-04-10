@@ -19,8 +19,8 @@ func NewStream(
 	manager := NewStreamWindowManager(0, operatorNames)
 
 	pipeline := NewPipeline(windowing)
-	pipeline.SetBufferSize(config.TotalBufferSize, config.NumBuffer)
-	pipeline.SetWindowsPerBatch(config.WindowsPerBatch)
+	pipeline.SetBufferSize(config.EachBufferSize)
+	pipeline.SetWindowsPerMerge(config.WindowsPerMerge)
 
 	return &Stream{
 		streamId: 0,
@@ -29,8 +29,8 @@ func NewStream(
 	}
 }
 
-func (stream *Stream) SetBackend(backend storage.Backend) {
-	stream.manager.SetBackingStore(NewBackingStore(backend))
+func (stream *Stream) SetBackend(backend storage.Backend, cacheEnabled bool) {
+	stream.manager.SetBackingStore(NewBackingStore(backend, cacheEnabled))
 	stream.pipeline.SetWindowManager(stream.manager)
 }
 
@@ -39,11 +39,11 @@ func (stream *Stream) Append(timestamp int64, value float64) {
 }
 
 func (stream *Stream) Flush() {
-	stream.pipeline.Flush(false, true)
+	stream.pipeline.Flush(false)
 }
 
 func (stream *Stream) Shutdown() {
-	stream.pipeline.Flush(true, true)
+	stream.pipeline.Flush(true)
 }
 
 func (stream *Stream) StartPipeline(ctx context.Context) {
@@ -56,6 +56,7 @@ func (stream *Stream) Query(
 	endTime int64,
 	params *QueryParams) *AggResult {
 
+	stream.pipeline.Flush(false) // sync writes
 	summaryWindows := stream.pipeline.streamWindowManager.
 		GetSummaryWindowInRange(startTime, endTime)
 	landmarkWindows := stream.pipeline.streamWindowManager.

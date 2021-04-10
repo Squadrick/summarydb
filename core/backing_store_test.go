@@ -43,7 +43,7 @@ func TestInMemory(t *testing.T) {
 	summaryWindow := GetSummaryWindow()
 	landmarkWindow := GetLandmarkWindow()
 	backend := storage.NewInMemoryBackend()
-	store := NewBackingStore(backend)
+	store := NewBackingStore(backend, false)
 
 	store.Put(0, 1, summaryWindow)
 	store.PutLandmark(1, 1, landmarkWindow)

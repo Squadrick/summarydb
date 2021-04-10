@@ -7,7 +7,7 @@ import (
 )
 
 func testStreamWindowManager(t *testing.T, backend storage.Backend) {
-	store := NewBackingStore(backend)
+	store := NewBackingStore(backend, false)
 
 	manager := NewStreamWindowManager(0, []string{"max", "sum", "count"})
 	manager.SetBackingStore(store)
@@ -59,7 +59,7 @@ func TestStreamWindowManager_Badger(t *testing.T) {
 }
 
 func testStreamWindowManagerMerge(t *testing.T, backend storage.Backend) {
-	store := NewBackingStore(backend)
+	store := NewBackingStore(backend, false)
 
 	manager := NewStreamWindowManager(0, []string{"max", "sum", "count"})
 	manager.SetBackingStore(store)

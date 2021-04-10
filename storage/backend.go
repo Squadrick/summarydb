@@ -94,10 +94,12 @@ func (backend *InMemoryBackend) Merge(
 	windowID int64,
 	buf []byte,
 	deletedIDs []int64) {
+	backend.summaryMapMutex.Lock()
+	defer backend.summaryMapMutex.Unlock()
 
-	backend.Put(streamID, windowID, buf)
+	backend.summaryMap[string(GetKey(false, streamID, windowID))] = buf
 	for _, ID := range deletedIDs {
-		backend.Delete(streamID, ID)
+		delete(backend.summaryMap, string(GetKey(false, streamID, ID)))
 	}
 }
 

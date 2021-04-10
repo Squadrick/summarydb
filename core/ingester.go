@@ -2,17 +2,11 @@ package core
 
 import (
 	"sync"
-	"sync/atomic"
-)
-
-var (
-	IngesterIdCounter int32 = 0
 )
 
 type IngestBuffer struct {
 	Capacity   int64
 	Size       int64
-	id         int32
 	timestamps []int64
 	values     []float64
 }
@@ -44,7 +38,6 @@ func NewIngestBuffer(capacity int64) *IngestBuffer {
 	return &IngestBuffer{
 		Capacity:   capacity,
 		Size:       0,
-		id:         atomic.AddInt32(&IngesterIdCounter, 1),
 		timestamps: make([]int64, capacity, capacity),
 		values:     make([]float64, capacity, capacity),
 	}
@@ -69,46 +62,49 @@ func (ib *IngestBuffer) TruncateHead(s int64) {
 	if s == 0 {
 		return
 	}
-	for i := int64(0); i < ib.Size-s; i += 1 {
-		ib.timestamps[i] = ib.timestamps[i+s]
-		ib.values[i] = ib.values[i+s]
-	}
+
+	// Move elements from position s onwards to the start.
+	copy(ib.timestamps, ib.timestamps[s:])
+	copy(ib.values, ib.values[s:])
 	ib.Size -= s
 }
 
+// Dealloc the underlying arrays.
 func (ib *IngestBuffer) Clear() {
 	ib.Size = 0
+	ib.Capacity = 0
+	ib.timestamps = nil
+	ib.values = nil
 }
 
-func (ib *IngestBuffer) GetTimestamp(pos int64) (int64, bool) {
+func (ib *IngestBuffer) Get(pos int64) (int64, float64, bool) {
 	if pos < 0 || pos >= ib.Size {
-		return 0, false
+		return 0, 0, false
 	}
-	return ib.timestamps[pos], true
+	return ib.timestamps[pos], ib.values[pos], true
 }
 
-func (ib *IngestBuffer) GetValue(pos int64) (float64, bool) {
-	if pos < 0 || pos >= ib.Size {
-		return 0, false
-	}
-	return ib.values[pos], true
-}
+// -- END OF IngestBuffer --
 
 type Ingester struct {
 	activeBuffer    *IngestBuffer
-	emptyBuffers    <-chan *IngestBuffer
+	bufferCapacity  int64
 	summarizerQueue chan<- *IngestBuffer
 }
 
-func NewIngester(inputCh <-chan *IngestBuffer, outputCh chan<- *IngestBuffer) *Ingester {
+func NewIngester(outputCh chan<- *IngestBuffer) *Ingester {
 	return &Ingester{
 		activeBuffer:    nil,
-		emptyBuffers:    inputCh,
+		bufferCapacity:  1, // use setBufferCapacity
 		summarizerQueue: outputCh,
 	}
 }
 
-func (i *Ingester) PushActiveToQueue() {
+func (i *Ingester) setBufferCapacity(cap int64) {
+	i.bufferCapacity = cap
+}
+
+func (i *Ingester) pushActiveBufferToQueue() {
 	if i.activeBuffer != nil && i.activeBuffer.Size > 0 {
 		i.summarizerQueue <- i.activeBuffer
 		i.activeBuffer = nil
@@ -116,21 +112,18 @@ func (i *Ingester) PushActiveToQueue() {
 }
 
 func (i *Ingester) Append(timestamp int64, value float64) {
-	for i.activeBuffer == nil {
-		select {
-		case activeBuffer := <-i.emptyBuffers:
-			i.activeBuffer = activeBuffer
-			break
-		}
+	if i.activeBuffer == nil {
+		i.activeBuffer = NewIngestBuffer(i.bufferCapacity)
 	}
-	i.activeBuffer.Append(timestamp, value)
-	if i.activeBuffer.IsFull() {
-		i.PushActiveToQueue()
+	if ok := i.activeBuffer.Append(timestamp, value); !ok {
+		// If an append fails, it is due to the buffer being
+		// full. Push it to queue.
+		i.pushActiveBufferToQueue()
 	}
 }
 
 func (i *Ingester) Flush(shutdown bool) {
-	i.PushActiveToQueue()
+	i.pushActiveBufferToQueue()
 	if shutdown {
 		i.summarizerQueue <- ConstShutdownIngestBuffer()
 	} else {

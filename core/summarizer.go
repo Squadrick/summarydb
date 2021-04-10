@@ -2,6 +2,15 @@ package core
 
 import "context"
 
+// Summarizer takes a stream of IngestBuffer which contains an array of
+// (timestamp, int64 value) pairs that are appended to the stream.
+// It creates a SummaryWindow out of the raw pairs. To identify how
+// each SummaryWindow ends to be bounded, i.e., the windowing info,
+// it stores windowLengths which are the valid consecutive window sizes
+// up to the max buffer size of IngestBuffer. This is calculated from
+// the window.Windowing info provided by user. If the ingest buffer is not
+// completely consumable (in-case of a flush), add the leftover buffer
+// to the partialBuffers channel.
 type Summarizer struct {
 	streamWindowManager *StreamWindowManager
 	windowLengths       []int64
@@ -28,6 +37,7 @@ func (s *Summarizer) SetWindowLengths(windowLengths []int64) {
 
 func (s *Summarizer) getNumWindowsCovering(ib *IngestBuffer) int {
 	if ib.IsFull() {
+		// This branch is very likely, except when flushing.
 		return len(s.windowLengths)
 	}
 	N := int64(0)
@@ -42,62 +52,61 @@ func (s *Summarizer) getNumWindowsCovering(ib *IngestBuffer) int {
 	return 0 // unreachable code
 }
 
+func (s *Summarizer) flush() {
+	if s.barrier != nil {
+		s.barrier.Notify(SUMMARIZER)
+	}
+}
+
 func (s *Summarizer) Run(
 	ctx context.Context,
 	summarizerQueue <-chan *IngestBuffer,
 	writerQueue chan<- *SummaryWindow,
-	emptyBuffers chan<- *IngestBuffer,
 	partialBuffers chan<- *IngestBuffer) {
 
 	for {
 		select {
 		case ingestBuffer := <-summarizerQueue:
 			if ingestBuffer == ConstShutdownIngestBuffer() {
-				if s.barrier != nil {
-					s.barrier.Notify(SUMMARIZER)
-				}
+				s.flush()
 				break
 			} else if ingestBuffer == ConstFlushIngestBuffer() {
-				if s.barrier != nil {
-					s.barrier.Notify(SUMMARIZER)
-				}
+				s.flush()
 				continue
 			} else {
-				W := s.getNumWindowsCovering(ingestBuffer)
-				bs := int64(0)
-				be := int64(0)
+				numWindows := s.getNumWindowsCovering(ingestBuffer)
+				iStart := int64(0) // denotes the buffer position till where elements are consumed
+				iEnd := int64(0)
 
-				for w := W - 1; w >= 0; w -= 1 {
-					be = bs + s.windowLengths[w] - 1
-					ts, okStart := ingestBuffer.GetTimestamp(bs)
-					te, okEnd := ingestBuffer.GetTimestamp(be)
+				for w := numWindows - 1; w >= 0; w -= 1 {
+					iEnd = iStart + s.windowLengths[w] - 1
+					ts, _, _ := ingestBuffer.Get(iStart)
+					te, _, ok := ingestBuffer.Get(iEnd)
 
-					if !(okStart && okEnd) {
-						continue
+					if !ok {
+						// *Only* consume full windows. Anything that's left
+						// is considered a partial buffer. We only check for
+						// iEnd, since there's no case where iEnd is within
+						// buffer bounds but iStart is not.
+						break
 					}
 
 					window := NewSummaryWindow(
-						ts, te, s.numElements+bs, s.numElements+be)
+						ts, te, s.numElements+iStart, s.numElements+iEnd)
 
-					for c := bs; c <= be; c += 1 {
-						timestamp, okt := ingestBuffer.GetTimestamp(c)
-						value, okv := ingestBuffer.GetValue(c)
-						if !(okt && okv) {
-							continue
-						}
+					for i := iStart; i <= iEnd; i += 1 {
+						// ingestBuffer[iStart:iEnd] are guaranteed to exist.
+						timestamp, value, _ := ingestBuffer.Get(i)
 						s.streamWindowManager.InsertIntoSummaryWindow(window, timestamp, value)
 					}
 
 					writerQueue <- window
-					bs = be + 1
+					iStart = iEnd + 1
 				}
-				s.numElements += bs
+				s.numElements += iStart
 
-				if bs == ingestBuffer.Size {
-					ingestBuffer.Clear()
-					emptyBuffers <- ingestBuffer
-				} else {
-					ingestBuffer.TruncateHead(bs)
+				if iStart != ingestBuffer.Size {
+					ingestBuffer.TruncateHead(iStart)
 					partialBuffers <- ingestBuffer
 				}
 			}

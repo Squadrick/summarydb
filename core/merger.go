@@ -210,21 +210,22 @@ func (hm *Merger) Process(mergeEvent *MergeEvent) {
 	}
 }
 
+func (hm *Merger) flush() {
+	hm.issueAllPendingMerges()
+	if hm.barrier != nil {
+		hm.barrier.Notify(MERGER)
+	}
+}
+
 func (hm *Merger) Run(ctx context.Context, inputCh <-chan *MergeEvent) {
 	for {
 		select {
 		case mergeEvent := <-inputCh:
 			if mergeEvent == ConstShutdownMergeEvent() {
-				hm.issueAllPendingMerges()
-				if hm.barrier != nil {
-					hm.barrier.Notify(MERGER)
-				}
-				return
+				hm.flush()
+				break
 			} else if mergeEvent == ConstFlushMergeEvent() {
-				hm.issueAllPendingMerges()
-				if hm.barrier != nil {
-					hm.barrier.Notify(MERGER)
-				}
+				hm.flush()
 				continue
 			} else {
 				hm.Process(mergeEvent)

@@ -115,11 +115,12 @@ func BytesToLandmarkWindow(buf []byte) *LandmarkWindow {
 
 type BackingStore struct {
 	backend       storage.Backend
+	cacheEnabled  bool
 	landmarkCache *ristretto.Cache
 	summaryCache  *ristretto.Cache
 }
 
-func NewBackingStore(backend storage.Backend) *BackingStore {
+func NewBackingStore(backend storage.Backend, cacheEnabled bool) *BackingStore {
 	landmarkCache, _ := ristretto.NewCache(&ristretto.Config{
 		NumCounters: 1e3,
 		MaxCost:     1 << 25,
@@ -133,28 +134,35 @@ func NewBackingStore(backend storage.Backend) *BackingStore {
 
 	return &BackingStore{
 		backend:       backend,
+		cacheEnabled:  cacheEnabled,
 		landmarkCache: landmarkCache,
 		summaryCache:  summaryCache,
 	}
 }
 
 func (store *BackingStore) Get(streamID, windowID int64) *SummaryWindow {
-	window, found := store.summaryCache.Get(storage.GetKey(false, streamID, windowID))
-	if found {
-		return window.(*SummaryWindow)
+	if store.cacheEnabled {
+		window, found := store.summaryCache.Get(storage.GetKey(false, streamID, windowID))
+		if found {
+			return window.(*SummaryWindow)
+		}
 	}
 	buf := store.backend.Get(streamID, windowID)
 	return BytesToSummaryWindow(buf)
 }
 
 func (store *BackingStore) Put(streamID, windowID int64, window *SummaryWindow) {
-	store.summaryCache.Set(storage.GetKey(false, streamID, windowID), window, 1)
+	if store.cacheEnabled {
+		store.summaryCache.Set(storage.GetKey(false, streamID, windowID), window, 1)
+	}
 	buf := SummaryWindowToBytes(window)
 	store.backend.Put(streamID, windowID, buf)
 }
 
 func (store *BackingStore) Delete(streamID, windowID int64) {
-	store.summaryCache.Del(storage.GetKey(false, streamID, windowID))
+	if store.cacheEnabled {
+		store.summaryCache.Del(storage.GetKey(false, streamID, windowID))
+	}
 	store.backend.Delete(streamID, windowID)
 }
 
@@ -162,13 +170,16 @@ func (store *BackingStore) MergeWindows(
 	streamID int64,
 	mergedWindow *SummaryWindow,
 	deletedWindowIDs []int64) {
-	store.summaryCache.Set(
-		storage.GetKey(false, streamID, mergedWindow.Id()),
-		mergedWindow,
-		1)
 
-	for _, swid := range deletedWindowIDs {
-		store.summaryCache.Del(storage.GetKey(false, streamID, swid))
+	if store.cacheEnabled {
+		store.summaryCache.Set(
+			storage.GetKey(false, streamID, mergedWindow.Id()),
+			mergedWindow,
+			1)
+
+		for _, swid := range deletedWindowIDs {
+			store.summaryCache.Del(storage.GetKey(false, streamID, swid))
+		}
 	}
 
 	buf := SummaryWindowToBytes(mergedWindow)
@@ -177,21 +188,27 @@ func (store *BackingStore) MergeWindows(
 }
 
 func (store *BackingStore) GetLandmark(streamID, windowID int64) *LandmarkWindow {
-	window, found := store.landmarkCache.Get(storage.GetKey(true, streamID, windowID))
-	if found {
-		return window.(*LandmarkWindow)
+	if store.cacheEnabled {
+		window, found := store.landmarkCache.Get(storage.GetKey(true, streamID, windowID))
+		if found {
+			return window.(*LandmarkWindow)
+		}
 	}
 	buf := store.backend.GetLandmark(streamID, windowID)
 	return BytesToLandmarkWindow(buf)
 }
 
 func (store *BackingStore) PutLandmark(streamID, windowID int64, window *LandmarkWindow) {
-	store.landmarkCache.Set(storage.GetKey(true, streamID, windowID), window, 1)
+	if store.cacheEnabled {
+		store.landmarkCache.Set(storage.GetKey(true, streamID, windowID), window, 1)
+	}
 	buf := LandmarkWindowToBytes(window)
 	store.backend.PutLandmark(streamID, windowID, buf)
 }
 
 func (store *BackingStore) DeleteLandmark(streamID, windowID int64) {
-	store.landmarkCache.Del(storage.GetKey(true, streamID, windowID))
+	if store.cacheEnabled {
+		store.landmarkCache.Del(storage.GetKey(true, streamID, windowID))
+	}
 	store.backend.DeleteLandmark(streamID, windowID)
 }
