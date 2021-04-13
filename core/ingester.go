@@ -9,6 +9,7 @@ type IngestBuffer struct {
 	Size       int64
 	timestamps []int64
 	values     []float64
+	allocator  *IngestBufferAllocator
 }
 
 var shutdownIngestBuffer *IngestBuffer = nil
@@ -20,7 +21,7 @@ func ConstShutdownIngestBuffer() *IngestBuffer {
 	shutdownIngestMutex.Lock()
 	defer shutdownIngestMutex.Unlock()
 	if shutdownIngestBuffer == nil {
-		shutdownIngestBuffer = NewIngestBuffer(0)
+		shutdownIngestBuffer = NewIngestBuffer(0, nil)
 	}
 	return shutdownIngestBuffer
 }
@@ -29,17 +30,18 @@ func ConstFlushIngestBuffer() *IngestBuffer {
 	flushIngestMutex.Lock()
 	defer flushIngestMutex.Unlock()
 	if flushIngestBuffer == nil {
-		flushIngestBuffer = NewIngestBuffer(0)
+		flushIngestBuffer = NewIngestBuffer(0, nil)
 	}
 	return flushIngestBuffer
 }
 
-func NewIngestBuffer(capacity int64) *IngestBuffer {
+func NewIngestBuffer(capacity int64, allocator *IngestBufferAllocator) *IngestBuffer {
 	return &IngestBuffer{
 		Capacity:   capacity,
 		Size:       0,
 		timestamps: make([]int64, capacity, capacity),
 		values:     make([]float64, capacity, capacity),
+		allocator:  allocator,
 	}
 }
 
@@ -75,6 +77,10 @@ func (ib *IngestBuffer) Clear() {
 	ib.Capacity = 0
 	ib.timestamps = nil
 	ib.values = nil
+	if ib.allocator != nil {
+		ib.allocator.Deallocate()
+		ib.allocator = nil
+	}
 }
 
 func (ib *IngestBuffer) Get(pos int64) (int64, float64, bool) {
@@ -86,8 +92,50 @@ func (ib *IngestBuffer) Get(pos int64) (int64, float64, bool) {
 
 // -- END OF IngestBuffer --
 
+type IngestBufferAllocator struct {
+	cv             *sync.Cond
+	currentBuffers int64
+	maxBuffers     int64
+}
+
+func NewIngestBufferAllocator() *IngestBufferAllocator {
+	mutex := sync.Mutex{}
+	return &IngestBufferAllocator{
+		cv:             sync.NewCond(&mutex),
+		currentBuffers: 0,
+		maxBuffers:     1,
+	}
+}
+
+func (iba *IngestBufferAllocator) Allocate(capacity int64) *IngestBuffer {
+	iba.cv.L.Lock()
+	for iba.currentBuffers >= iba.maxBuffers {
+		iba.cv.Wait()
+	}
+	iba.currentBuffers += 1
+	iba.cv.L.Unlock()
+	return NewIngestBuffer(capacity, iba)
+}
+
+func (iba *IngestBufferAllocator) Deallocate() {
+	iba.cv.L.Lock()
+	iba.currentBuffers -= 1
+	iba.cv.Broadcast()
+	iba.cv.L.Unlock()
+}
+
+func (iba *IngestBufferAllocator) SetMaxBuffers(maxBuffers int64) {
+	iba.cv.L.Lock()
+	iba.maxBuffers = maxBuffers
+	iba.cv.Broadcast()
+	iba.cv.L.Unlock()
+}
+
+// -- END of IngestBufferAllocator
+
 type Ingester struct {
 	activeBuffer    *IngestBuffer
+	allocator       *IngestBufferAllocator
 	bufferCapacity  int64
 	summarizerQueue chan<- *IngestBuffer
 }
@@ -95,6 +143,7 @@ type Ingester struct {
 func NewIngester(outputCh chan<- *IngestBuffer) *Ingester {
 	return &Ingester{
 		activeBuffer:    nil,
+		allocator:       NewIngestBufferAllocator(),
 		bufferCapacity:  1, // use setBufferCapacity
 		summarizerQueue: outputCh,
 	}
@@ -113,7 +162,7 @@ func (i *Ingester) pushActiveBufferToQueue() {
 
 func (i *Ingester) Append(timestamp int64, value float64) {
 	if i.activeBuffer == nil {
-		i.activeBuffer = NewIngestBuffer(i.bufferCapacity)
+		i.activeBuffer = i.allocator.Allocate(i.bufferCapacity)
 	}
 	if ok := i.activeBuffer.Append(timestamp, value); !ok {
 		// If an append fails, it is due to the buffer being

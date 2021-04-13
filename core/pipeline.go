@@ -152,3 +152,8 @@ func (p *Pipeline) SetUnbuffered() *Pipeline {
 	p.bufferSize = 0
 	return p
 }
+
+func (p *Pipeline) SetNumBuffers(numBuffers int64) *Pipeline {
+	p.ingester.allocator.SetMaxBuffers(numBuffers)
+	return p
+}

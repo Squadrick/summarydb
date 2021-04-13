@@ -108,6 +108,9 @@ func (s *Summarizer) Run(
 				if iStart != ingestBuffer.Size {
 					ingestBuffer.TruncateHead(iStart)
 					partialBuffers <- ingestBuffer
+				} else {
+					// buffer is empty.
+					ingestBuffer.Clear()
 				}
 			}
 		case <-ctx.Done():

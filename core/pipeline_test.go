@@ -152,7 +152,8 @@ func benchmarkPipeline(b *testing.B,
 	pipeline := NewPipeline(windowing).
 		SetBufferSize(totalBufferSize).
 		SetWindowsPerMerge(windowsPerBatch).
-		SetWindowManager(manager)
+		SetWindowManager(manager).
+		SetNumBuffers(numBuffers)
 	pipeline.SetWindowManager(manager)
 
 	ctx := context.Background()
@@ -169,7 +170,7 @@ func benchmarkPipeline(b *testing.B,
 
 func benchmarkPipelineLoop(b *testing.B, windowing window.Windowing) {
 	limit := 4
-	for totalBufferSize := 4; totalBufferSize <= 64; totalBufferSize *= 4 {
+	for totalBufferSize := 8; totalBufferSize <= 128; totalBufferSize *= 4 {
 		for numBuffer := 1; numBuffer <= limit; numBuffer *= 2 {
 			for windowsPerBatch := 1; windowsPerBatch <= limit; windowsPerBatch *= 2 {
 				name := strconv.Itoa(totalBufferSize) + "/" + strconv.Itoa(numBuffer) + "/" + strconv.Itoa(windowsPerBatch)
