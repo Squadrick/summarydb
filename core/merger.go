@@ -144,8 +144,22 @@ func (hm *Merger) issuePendingMerge(head int64, tail []int64) {
 	hm.streamWindowManager.UpdateMergeSummaryWindows(mergedWindow, tail)
 }
 
+func (hm *Merger) writeHeapToDisk() {
+	return
+}
+
 func (hm *Merger) issueAllPendingMerges() {
 	var wg sync.WaitGroup
+	wg.Add(1)
+
+	// NOTE: This is only safe because `issuePendingMerge()` does not
+	// access the heap (mergeCounts). If that changes in the future,
+	// these two operations cannot be parallelized.
+	go func() {
+		hm.writeHeapToDisk()
+		wg.Done()
+	}()
+
 	for head, tail := range hm.pendingMerges {
 		wg.Add(1)
 		go func(h int64, t []int64) {
