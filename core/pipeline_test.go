@@ -10,7 +10,7 @@ import (
 )
 
 // 31 time steps
-var ExpectedEvolution = [][]int64{
+var ExpectedEvolutionExp = [][]int64{
 	{1},
 	{1, 1},
 	{2, 1},
@@ -44,18 +44,45 @@ var ExpectedEvolution = [][]int64{
 	{16, 8, 4, 2, 1},
 }
 
-func TestPipeline_EachStep_Unbuffered(t *testing.T) {
+// 22 time steps
+var ExpectedEvolutionPower = [][]int64{
+	{1},
+	{1, 1},
+	{1, 1, 1},
+	{1, 1, 1, 1},
+	{1, 1, 1, 1, 1},
+	{2, 1, 1, 1, 1},
+	{2, 1, 1, 1, 1, 1},
+	{2, 2, 1, 1, 1, 1},
+	{2, 2, 1, 1, 1, 1, 1},
+	{2, 2, 2, 1, 1, 1, 1},
+	{2, 2, 2, 1, 1, 1, 1, 1},
+	{2, 2, 2, 2, 1, 1, 1, 1},
+	{2, 2, 2, 2, 1, 1, 1, 1, 1},
+	{2, 2, 2, 2, 2, 1, 1, 1, 1},
+	{2, 2, 2, 2, 2, 1, 1, 1, 1, 1},
+	{2, 2, 2, 2, 2, 2, 1, 1, 1, 1},
+	{2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1},
+	{2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1},
+	{2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1},
+	{2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1},
+	{2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1},
+	{2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1},
+}
+
+func testPipeline_EachStep_Unbuffered(t *testing.T,
+	windowing window.Windowing,
+	expectedEvolution [][]int64) {
 	manager := NewStreamWindowManager(0, []string{"count"})
 	backend := storage.NewInMemoryBackend()
 	manager.SetBackingStore(NewBackingStore(backend, false))
-	windowing := window.NewGenericWindowing(window.NewExponentialLengthsSequence(2))
 	pipeline := NewPipeline(windowing).
 		SetWindowManager(manager).
 		SetUnbuffered()
 
-	for ti := int64(0); ti < int64(len(ExpectedEvolution)); ti += 1 {
+	for ti := int64(0); ti < int64(len(expectedEvolution)); ti += 1 {
 		pipeline.Append(ti, 0)
-		expectedAnswer := ExpectedEvolution[ti]
+		expectedAnswer := expectedEvolution[ti]
 		results := make([]int64, 0)
 		summaryWindows := manager.GetSummaryWindowInRange(0, ti)
 
@@ -66,11 +93,23 @@ func TestPipeline_EachStep_Unbuffered(t *testing.T) {
 	}
 }
 
-func TestPipeline_EachStep_Buffered(t *testing.T) {
+func TestPipeline_EachStep_Unbuffered_Exp(t *testing.T) {
+	windowing := window.NewGenericWindowing(window.NewExponentialLengthsSequence(2))
+	testPipeline_EachStep_Unbuffered(t, windowing, ExpectedEvolutionExp)
+}
+
+func TestPipeline_EachStep_Unbuffered_Power(t *testing.T) {
+	windowing := window.NewGenericWindowing(window.NewPowerLengthsSequence(1, 1, 4, 1))
+	print(len(ExpectedEvolutionPower))
+	testPipeline_EachStep_Unbuffered(t, windowing, ExpectedEvolutionPower)
+}
+
+func testPipeline_EachStep_Buffered(t *testing.T,
+	windowing window.Windowing,
+	expectedEvolution [][]int64) {
 	manager := NewStreamWindowManager(0, []string{"count"})
 	backend := storage.NewInMemoryBackend()
 	manager.SetBackingStore(NewBackingStore(backend, false))
-	windowing := window.NewGenericWindowing(window.NewExponentialLengthsSequence(2))
 	pipeline := NewPipeline(windowing).
 		SetBufferSize(31 /*4 windows*/).
 		SetWindowsPerMerge(2).
@@ -80,11 +119,10 @@ func TestPipeline_EachStep_Buffered(t *testing.T) {
 	cancelCtx, cancelFunc := context.WithCancel(ctx)
 	pipeline.Run(cancelCtx)
 
-	for ti := int64(0); ti < int64(len(ExpectedEvolution)); ti += 1 {
+	for ti := int64(0); ti < int64(len(expectedEvolution)); ti += 1 {
 		pipeline.Append(ti, 0)
 		pipeline.Flush(false)
-		//time.Sleep(50 * time.Millisecond)
-		expectedAnswer := ExpectedEvolution[ti]
+		expectedAnswer := expectedEvolution[ti]
 		results := make([]int64, 0)
 		summaryWindows := manager.GetSummaryWindowInRange(0, ti)
 
@@ -97,6 +135,16 @@ func TestPipeline_EachStep_Buffered(t *testing.T) {
 		}
 	}
 	cancelFunc()
+}
+
+func TestPipeline_EachStep_Buffered_Exp(t *testing.T) {
+	windowing := window.NewGenericWindowing(window.NewExponentialLengthsSequence(2))
+	testPipeline_EachStep_Buffered(t, windowing, ExpectedEvolutionExp)
+}
+
+func TestPipeline_EachStep_Buffered_Power(t *testing.T) {
+	windowing := window.NewGenericWindowing(window.NewPowerLengthsSequence(1, 1, 4, 1))
+	testPipeline_EachStep_Buffered(t, windowing, ExpectedEvolutionPower)
 }
 
 func testPipelineFinalStep(t *testing.T, backend storage.Backend) {
@@ -112,13 +160,13 @@ func testPipelineFinalStep(t *testing.T, backend storage.Backend) {
 	cancelCtx, cancelFunc := context.WithCancel(ctx)
 	pipeline.Run(cancelCtx)
 
-	for ti := int64(0); ti < int64(len(ExpectedEvolution)); ti += 1 {
+	for ti := int64(0); ti < int64(len(ExpectedEvolutionExp)); ti += 1 {
 		pipeline.Append(ti, 0)
 	}
 
 	pipeline.Flush(true)
-	tl := int64(len(ExpectedEvolution) - 1)
-	expectedAnswer := ExpectedEvolution[tl]
+	tl := int64(len(ExpectedEvolutionExp) - 1)
+	expectedAnswer := ExpectedEvolutionExp[tl]
 	results := make([]int64, 0)
 	summaryWindows := manager.GetSummaryWindowInRange(0, tl)
 
@@ -195,5 +243,11 @@ func BenchmarkPipeline_Exp(b *testing.B) {
 func BenchmarkPipeline_Power(b *testing.B) {
 	// root N growth
 	windowing := window.NewPowerWindowing(1, 1, 10, 1)
+	benchmarkPipelineLoop(b, windowing)
+}
+
+func BenchmarkPipeline_PowerSeq(b *testing.B) {
+	// root N growth
+	windowing := window.NewGenericWindowing(window.NewPowerLengthsSequence(1, 1, 10, 1))
 	benchmarkPipelineLoop(b, windowing)
 }

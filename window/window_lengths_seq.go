@@ -44,3 +44,37 @@ func (seq *ExponentialLengthsSequence) NextWindowLength() int64 {
 func (seq *ExponentialLengthsSequence) MaxWindowSize() int64 {
 	return math.MaxUint32
 }
+
+type PowerLengthsSequence struct {
+	P    int64
+	q    int64
+	R    int64
+	S    int64
+	k    int64
+	curr int64
+}
+
+func NewPowerLengthsSequence(P, q, R, S int64) *PowerLengthsSequence {
+	return &PowerLengthsSequence{
+		P:    P,
+		q:    q,
+		R:    R,
+		S:    S,
+		k:    1,
+		curr: 0,
+	}
+}
+
+func (seq *PowerLengthsSequence) NextWindowLength() int64 {
+	count := seq.R * int64Pow(seq.k, seq.P-1)
+	if count <= seq.curr {
+		seq.k++
+		seq.curr = 0
+	}
+	seq.curr++
+	return seq.S * int64Pow(seq.k, seq.q)
+}
+
+func (seq *PowerLengthsSequence) MaxWindowSize() int64 {
+	return math.MaxUint32
+}

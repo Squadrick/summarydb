@@ -20,6 +20,8 @@ import (
 	"summarydb/tree"
 )
 
+// TODO: This is broken. Fix it.
+
 // S is the fixed size of the starting window
 // Initially, we have R windows each of size S
 // Each consequent step will increase both the size of the window, and number of windows
