@@ -128,6 +128,11 @@ func (pwin *PowerWindowing) GetFirstContainingTime(Tl, Tr, T int64) (int64, bool
 	lengthMarker = lengthMarkerValue.(int64)
 
 	// [Wl, Wr] is the window containing l
+	if targetLength == 0 {
+		// Explicitly handle the case for the first window when
+		// targetLength = 0, to prevent divide by zero error.
+		targetLength = 1
+	}
 	Wl := lengthMarker + (l-lengthMarker)/targetLength
 	Wr := Wl + targetLength - 1
 	if r <= Wr {

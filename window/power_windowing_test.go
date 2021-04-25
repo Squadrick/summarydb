@@ -5,6 +5,20 @@ import (
 	"testing"
 )
 
+func TestFirstWindow(t *testing.T) {
+	window := NewPowerWindowing(1, 1, 10, 1)
+
+	getTime := func(Tl, Tr, T int64) int64 {
+		value, ok := window.GetFirstContainingTime(Tl, Tr, T)
+		if !ok {
+			t.Fatalf("Getting value failed for: [%d, %d, %d]\n", Tl, Tr, T)
+		}
+		return value
+	}
+
+	assert.Equal(t, int64(131), getTime(119, 123, 130))
+}
+
 func TestPowerWindowing_GetFirstContainingTime(t *testing.T) {
 	window := NewPowerWindowing(1, 2, 1, 1)
 
