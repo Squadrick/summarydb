@@ -40,6 +40,10 @@ func (set *OpSet) Insert(data *DataTable, value float64, ts int64) {
 }
 
 func (set *OpSet) Merge(data []DataTable) *DataTable {
+	// TODO: Since each Op is associative, we can parallelize or
+	// divide-and-conquer rather than doing it linearly. Rather than using a
+	// single approach, the algorithm selection should be based on the size
+	// of data. For smaller sizes use linear, for medium use parallel.
 	mergedData := NewDataTable()
 	for _, op := range set.ops {
 		op.Merge(mergedData, data)

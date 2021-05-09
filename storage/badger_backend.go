@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"github.com/dgraph-io/badger/v2"
 	"log"
+	"math"
 )
 
 type BadgerBackendConfig struct {
@@ -144,12 +145,12 @@ func (backend *BadgerBackend) DeleteLandmark(streamID, windowID int64) {
 }
 
 func (backend *BadgerBackend) GetHeap(streamID int64) []byte {
-	key := GetKey(false, streamID, 0)
+	key := GetKey(false, streamID, math.MinInt64)
 	return backend.txnGet(key)
 }
 
 func (backend *BadgerBackend) PutHeap(streamID int64, heap []byte) {
-	key := GetKey(false, streamID, 0)
+	key := GetKey(false, streamID, math.MinInt64)
 	backend.txnPut(key, heap)
 }
 

@@ -70,7 +70,13 @@ func NewMerger(windowing window.Windowing, windowsPerBatch int64, barrier *Barri
 
 func (hm *Merger) SetWindowManager(manager *StreamWindowManager) {
 	hm.streamWindowManager = manager
-	hm.index.PopulateFromHeap(hm.mergeCounts)
+}
+
+func (hm *Merger) PrimeUp() {
+	if hm.streamWindowManager != nil {
+		hm.mergeCounts = hm.streamWindowManager.GetHeap()
+		hm.index.PopulateFromHeap(hm.mergeCounts)
+	}
 }
 
 // Given consecutive windows w0, w1 which together span the count [c0, c1],
@@ -145,7 +151,9 @@ func (hm *Merger) issuePendingMerge(head int64, tail []int64) {
 }
 
 func (hm *Merger) writeHeapToDisk() {
-	return
+	if hm.streamWindowManager != nil {
+		hm.streamWindowManager.PutHeap(hm.mergeCounts)
+	}
 }
 
 func (hm *Merger) issueAllPendingMerges() {
@@ -225,6 +233,8 @@ func (hm *Merger) Process(mergeEvent *MergeEvent) {
 }
 
 func (hm *Merger) flush() {
+	hm.mutex.Lock()
+	defer hm.mutex.Unlock()
 	hm.issueAllPendingMerges()
 	if hm.barrier != nil {
 		hm.barrier.Notify(MERGER)

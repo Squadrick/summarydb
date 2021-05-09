@@ -3,6 +3,7 @@ package core
 import (
 	"math"
 	"summarydb/storage"
+	"summarydb/tree"
 )
 
 type StreamWindowManager struct {
@@ -149,4 +150,12 @@ func (manager *StreamWindowManager) DeleteLandmarkWindow(swid int64) {
 
 func (manager *StreamWindowManager) NumLandmarkWindows() int {
 	return manager.landmarkIndex.GetNumberWindows()
+}
+
+func (manager *StreamWindowManager) PutHeap(heap *tree.MinHeap) {
+	manager.backingStore.PutHeap(manager.id, heap)
+}
+
+func (manager *StreamWindowManager) GetHeap() *tree.MinHeap {
+	return manager.backingStore.GetHeap(manager.id)
 }
