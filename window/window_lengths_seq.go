@@ -46,7 +46,7 @@ func (seq *ExponentialLengthsSequence) MaxWindowSize() int64 {
 }
 
 type PowerLengthsSequence struct {
-	P    int64
+	p    int64
 	q    int64
 	R    int64
 	S    int64
@@ -54,9 +54,9 @@ type PowerLengthsSequence struct {
 	curr int64
 }
 
-func NewPowerLengthsSequence(P, q, R, S int64) *PowerLengthsSequence {
+func NewPowerLengthsSequence(p, q, R, S int64) *PowerLengthsSequence {
 	return &PowerLengthsSequence{
-		P:    P,
+		p:    p,
 		q:    q,
 		R:    R,
 		S:    S,
@@ -66,7 +66,7 @@ func NewPowerLengthsSequence(P, q, R, S int64) *PowerLengthsSequence {
 }
 
 func (seq *PowerLengthsSequence) NextWindowLength() int64 {
-	count := seq.R * int64Pow(seq.k, seq.P-1)
+	count := seq.R * int64Pow(seq.k, seq.p-1)
 	if count <= seq.curr {
 		seq.k++
 		seq.curr = 0

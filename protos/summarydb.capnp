@@ -32,3 +32,28 @@ struct ProtoLandmarkWindow {
     timestamps @2 :List(Int64);
     values @3 :List(Float64);
 }
+
+struct ExpWindow {
+    next @0 :Float64;
+    base @1 :Float64;
+}
+
+struct PowerWindow {
+    p @0 :Int64;
+    q @1 :Int64;
+    R @2 :Int64;
+    S @3 :Int64;
+}
+
+struct Stream {
+    id @0 :Int64;
+    operators @1 :List(OpType);
+    window :union {
+        exp @2 :ExpWindow;
+        power @3 :PowerWindow;
+    }
+}
+
+struct DB {
+    streamIds @0 :List(Int64);
+}
