@@ -158,11 +158,11 @@ func (hm *Merger) writeHeapToDisk() {
 
 func (hm *Merger) issueAllPendingMerges() {
 	var wg sync.WaitGroup
-	wg.Add(1)
 
 	// NOTE: This is only safe because `issuePendingMerge()` does not
 	// access the heap (mergeCounts). If that changes in the future,
 	// these two operations cannot be parallelized.
+	wg.Add(1)
 	go func() {
 		hm.writeHeapToDisk()
 		wg.Done()
