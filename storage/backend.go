@@ -12,13 +12,6 @@ func BitSet(cond bool) byte {
 	return 0
 }
 
-func GetStreamLandmarkSegment(landmark bool, streamID int64) []byte {
-	buf := make([]byte, 9)
-	binary.LittleEndian.PutUint64(buf[:8], uint64(streamID))
-	buf[8] = BitSet(landmark)
-	return buf
-}
-
 func GetKey(landmark bool, streamID, windowID int64) []byte {
 	buf := make([]byte, 17)
 
@@ -54,12 +47,16 @@ type Backend interface {
 
 	IterateIndex(int64, func(int64), bool)
 
+	GetHeap(int64) []byte
+	PutHeap(int64, []byte)
+
 	Close()
 }
 
 type InMemoryBackend struct {
 	summaryMap       map[string][]byte
 	landmarkMap      map[string][]byte
+	heapMap          map[int64][]byte
 	summaryMapMutex  sync.Mutex
 	landmarkMapMutex sync.Mutex
 }
@@ -68,6 +65,7 @@ func NewInMemoryBackend() *InMemoryBackend {
 	return &InMemoryBackend{
 		summaryMap:  make(map[string][]byte),
 		landmarkMap: make(map[string][]byte),
+		heapMap:     make(map[int64][]byte),
 	}
 }
 
@@ -141,4 +139,12 @@ func (backend *InMemoryBackend) IterateIndex(streamID int64, lambda func(int64),
 		}
 		lambda(GetWindowIDFromKey(buf))
 	}
+}
+
+func (backend *InMemoryBackend) GetHeap(streamID int64) []byte {
+	return backend.heapMap[streamID]
+}
+
+func (backend *InMemoryBackend) PutHeap(streamID int64, heap []byte) {
+	backend.heapMap[streamID] = heap
 }

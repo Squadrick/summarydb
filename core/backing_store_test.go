@@ -1,8 +1,12 @@
 package core
 
 import (
+	"container/heap"
 	"github.com/stretchr/testify/assert"
+	"math"
+	"strconv"
 	"summarydb/storage"
+	"summarydb/tree"
 	"testing"
 )
 
@@ -53,4 +57,100 @@ func TestInMemory(t *testing.T) {
 
 	assert.Equal(t, summaryWindow, newSummaryWindow)
 	assert.Equal(t, landmarkWindow, newLandmarkWindow)
+}
+
+func GetIdentity() func(int) int {
+	return func(i int) int {
+		return i
+	}
+}
+
+func generateHeap(heapSize int,
+	valueTransform func(int) int,
+	priorityTransform func(int) int) *tree.MinHeap {
+	newHeap := tree.NewMinHeap(heapSize)
+
+	for i := 0; i < heapSize; i += 1 {
+		item := &tree.HeapItem{
+			Value:    int64(valueTransform(i)),
+			Priority: priorityTransform(i),
+			Index:    -1,
+		}
+		heap.Push(newHeap, item)
+	}
+	return newHeap
+}
+
+func TestHeap(t *testing.T) {
+	backend := storage.NewBadgerBacked(storage.TestBadgerBackendConfig())
+	store := NewBackingStore(backend, false)
+	testSize := 1000
+
+	valueTransform := func(i int) int {
+		return 2 * i
+	}
+	priorityTransform := func(i int) int {
+		return testSize - i - 1
+	}
+	{
+		diskHeap := generateHeap(testSize,
+			valueTransform,
+			priorityTransform)
+		store.PutHeap(0, diskHeap)
+	}
+	{
+		diskHeap := store.GetHeap(0)
+		i := 0
+		for diskHeap.Len() != 0 {
+			heapItem := heap.Pop(diskHeap).(*tree.HeapItem)
+			assert.Equal(t, i, heapItem.Priority)
+			assert.Equal(t, int64(valueTransform(priorityTransform(i))), heapItem.Value)
+			i += 1
+		}
+	}
+}
+
+// 140ns/item , linear growth.
+func BenchmarkHeapToBytes(b *testing.B) {
+	for i := 2; i < 6; i += 1 {
+		size := int(math.Pow(10.0, float64(i)))
+		newHeap := generateHeap(size, GetIdentity(), GetIdentity())
+		b.Run("HeapToBytes-"+strconv.Itoa(size), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				_ = HeapToBytes(newHeap)
+			}
+		})
+	}
+}
+
+// Starts at 350ns/item, drops to 170ns/item between
+// 100 to 1000 items.
+func BenchmarkBytesToHeap(b *testing.B) {
+	for i := 2; i < 6; i += 1 {
+		size := int(math.Pow(10.0, float64(i)))
+		newHeap := generateHeap(size, GetIdentity(), GetIdentity())
+		rawBytes := HeapToBytes(newHeap)
+		b.Run("HeapToBytes-"+strconv.Itoa(size), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				_ = BytesToHeap(rawBytes)
+			}
+		})
+	}
+}
+
+// Starts at 500ns/item, drops to 300ns/item between
+// 100 and 1000 items.
+func BenchmarkStoringHeap(b *testing.B) {
+	backend := storage.NewInMemoryBackend()
+	store := NewBackingStore(backend, false)
+	for i := 2; i < 6; i += 1 {
+		size := int(math.Pow(10.0, float64(i)))
+		newHeap := generateHeap(size, GetIdentity(), GetIdentity())
+		b.Run("HeapToBytes-"+strconv.Itoa(size), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				store.PutHeap(0, newHeap)
+				store.GetHeap(0)
+			}
+		})
+	}
 }

@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"encoding/binary"
 	"github.com/dgraph-io/badger/v2"
 	"log"
 )
@@ -142,8 +143,25 @@ func (backend *BadgerBackend) DeleteLandmark(streamID, windowID int64) {
 	backend.txnDelete(key)
 }
 
+func (backend *BadgerBackend) GetHeap(streamID int64) []byte {
+	key := GetKey(false, streamID, 0)
+	return backend.txnGet(key)
+}
+
+func (backend *BadgerBackend) PutHeap(streamID int64, heap []byte) {
+	key := GetKey(false, streamID, 0)
+	backend.txnPut(key, heap)
+}
+
+func GetKeyPrefix(landmark bool, streamID int64) []byte {
+	buf := make([]byte, 9)
+	binary.LittleEndian.PutUint64(buf[:8], uint64(streamID))
+	buf[8] = BitSet(landmark)
+	return buf
+}
+
 func (backend *BadgerBackend) IterateIndex(streamID int64, lambda func(int64), landmark bool) {
-	prefix := GetStreamLandmarkSegment(landmark, streamID)
+	prefix := GetKeyPrefix(landmark, streamID)
 	iterOpts := badger.IteratorOptions{Prefix: prefix}
 	_ = backend.db.View(func(txn *badger.Txn) error {
 		iter := txn.NewIterator(iterOpts)

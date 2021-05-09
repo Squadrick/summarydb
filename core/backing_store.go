@@ -1,9 +1,13 @@
 package core
 
 import (
+	"bytes"
+	"encoding/gob"
+	_ "encoding/gob"
 	"github.com/dgraph-io/ristretto"
 	"summarydb/protos"
 	"summarydb/storage"
+	"summarydb/tree"
 	capnp "zombiezen.com/go/capnproto2"
 )
 
@@ -113,6 +117,12 @@ func BytesToLandmarkWindow(buf []byte) *LandmarkWindow {
 	return landmarkWindow
 }
 
+// TODO: Support transactions in BackingStore. The API will as follows:
+//		txn := backingStore.BeginTransaction()
+//		txn.Put(...)
+//		txn.PutLandmark(...)
+//		...
+//		txn.Close()
 type BackingStore struct {
 	backend       storage.Backend
 	cacheEnabled  bool
@@ -131,6 +141,7 @@ func NewBackingStore(backend storage.Backend, cacheEnabled bool) *BackingStore {
 		MaxCost:     1 << 28,
 		BufferItems: 64,
 	})
+	// TODO: Cache for heap?
 
 	return &BackingStore{
 		backend:       backend,
@@ -211,4 +222,37 @@ func (store *BackingStore) DeleteLandmark(streamID, windowID int64) {
 		store.landmarkCache.Del(storage.GetKey(true, streamID, windowID))
 	}
 	store.backend.DeleteLandmark(streamID, windowID)
+}
+
+// TODO: Implement alternate versions that use CapnProto. Might be faster.
+func HeapToBytes(heap *tree.MinHeap) []byte {
+	var buffer bytes.Buffer
+	enc := gob.NewEncoder(&buffer)
+	err := enc.Encode(*heap)
+	if err != nil {
+		panic(err)
+	}
+	return buffer.Bytes()
+}
+
+func BytesToHeap(rawBytes []byte) *tree.MinHeap {
+	var buffer bytes.Buffer
+	buffer.Write(rawBytes)
+	dec := gob.NewDecoder(&buffer)
+	var heap tree.MinHeap
+	err := dec.Decode(&heap)
+	if err != nil {
+		panic(err)
+	}
+	return &heap
+}
+
+func (store *BackingStore) GetHeap(streamID int64) *tree.MinHeap {
+	rawBytes := store.backend.GetHeap(streamID)
+	return BytesToHeap(rawBytes)
+}
+
+func (store *BackingStore) PutHeap(streamID int64, heap *tree.MinHeap) {
+	rawBytes := HeapToBytes(heap)
+	store.backend.PutHeap(streamID, rawBytes)
 }
