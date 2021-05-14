@@ -41,8 +41,8 @@ struct ExpWindow {
 struct PowerWindow {
     p @0 :Int64;
     q @1 :Int64;
-    R @2 :Int64;
-    S @3 :Int64;
+    r @2 :Int64;
+    s @3 :Int64;
 }
 
 struct Stream {

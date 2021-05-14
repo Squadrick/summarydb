@@ -4,6 +4,7 @@ package protos
 
 import (
 	math "math"
+	strconv "strconv"
 	capnp "zombiezen.com/go/capnproto2"
 	text "zombiezen.com/go/capnproto2/encoding/text"
 	schemas "zombiezen.com/go/capnproto2/schemas"
@@ -396,46 +397,491 @@ func (p ProtoLandmarkWindow_Promise) Struct() (ProtoLandmarkWindow, error) {
 	return ProtoLandmarkWindow{s}, err
 }
 
-const schema_91f0805429cab961 = "x\xda|\x93\xcfK\x14a\x1c\xc6\x9f\xe7}g\x1aH" +
-	"\xd1}q\xc1\xf2\xb2$t\xb0\xa2\xfc\x81\x87<\xa4\x81" +
-	"A\x85\xe2\xbe\xb5\x10HA\xaf\xeb\x94\xd2\xce\xce\xb43" +
-	"[\x0a\x05\x0a&\x0a\x06\x09Ay\xe8\xe0\xc1s\xe7\x0e" +
-	"\xe1\xbd\x08\xfa\x1b\x82\xe8ZA]:L\xbc\xbb:\xbb" +
-	"\x08u\xda\xef\xfb\xd9g\xe6\xfby\x86\x99\xc1~N\x88" +
-	"!\xf7>\x01\x9ds\x8f\xa5}\xa3[\xa5\xb3\xeb\xfb\xeb" +
-	"P\xbd\"5\xef>\x0c\x94V\xbeo\x03T;?\xd5" +
-	"\x9e\x07\xa8\xddW`\xba<\xb8\x7fzl\xa6\xf3#t" +
-	"/e+\xe6x\xc0\xd0\xd7\xe3T\xbfl\xf2\xc7[0" +
-	"\xed\xfe\xb2\x7f\xfd\xdc\xf4\xefO6\xd9vCWx\xc0" +
-	"\xc8&g\xd9\xf3\x86\x1e\xd0\xb3\xc3o`\xfa\xe7\xfd\x9d" +
-	"\xcd\xed\xd1K\x9fm\xdaiK\xdb\xc8\xc8\xb6\xb8\xc1\x9e" +
-	"\xbd\xc6\x85\xbb\xa2@0\x8dja\x12\xc6\x17bQ\x0f" +
-	"\x02S[\x9e\x9f;_6Q5\x1a\x9b)D\xa5\xe5" +
-	"\xc8/\x92\xfa\x04\x05\xa0.\x0f\x03\xa4\xba\xd8\x0fP\xa8" +
-	"!{\x92j\xc0\x9e\x1cu\xca\xfe\xb8\xea\xe4\x19\xa0P" +
-	"\x0e\xeb\xd5\xc4\x8b\xebAa\xae\x12\x86\x81W\x0eb/" +
-	"0K\xdd\xf7j\xfe\xc3l\x9b<\xb2m\xd2$\xa6d" +
-	"\xe6*>`7vJ\x07p\x08\xa8+\xc3\x80\x9e\x90" +
-	"\xd4S\x82\x8a\xcc\xd3\xc2k\xfd\x80\x9e\x94\xd4EA%" +
-	"D\xbe\xe17m\xe1UI]\x12lJ\xb0\x03\x82\x1d" +
-	"\xa0]\x9f\xcdq=8\x9c3\x1b\xe7\x88M\xd1\xf2)" +
-	"S\x9d\x0fL\xed\xc1\xad\xc5\xea\xbc\x0c\x1f[\xad\\\xa6" +
-	"e\xfa\x00}[R/\xb4i\xf9\x16\xde\x95\xd4\x15A" +
-	"\x1eX-\xce\x02zAR\xaf\x09*\xc9<%\xa0V" +
-	"\xc7\x00\xfdDR\xbf\x16\x94IL\x17\x82.(\x13\xff" +
-	"pL\x93\xc5\xc0\x8f\x13\x13@F1\xbb\xc0\xa2d\xe3" +
-	"\xbf.p\xfc\x91\xa9\xd4\xfd\x8cv4\xe9\xff\xcb\xdcl" +
-	"B\xdb%d\xa3K>\xeb\xf2\xd4j/\x1d(\x1ev" +
-	"Y\xed;P\xdch{\xc4\xcf,\\\x91\xd4[\xb6\x8c" +
-	"l\x96\xd9\xb4pMR\xbf\x10\xa4\x93\xa7\x03\xa8\xe7\xb6" +
-	"\xe0\x86\xa4~\xf9\xaf\x82\xb2\xdc\xa2\xe5\x8c\x8e\x87\x91}" +
-	"\x13\x98k}\x1d s\xe0\xdf\x00\x00\x00\xff\xff\x09J" +
-	"\xbc\xb3"
+type ExpWindow struct{ capnp.Struct }
+
+// ExpWindow_TypeID is the unique identifier for the type ExpWindow.
+const ExpWindow_TypeID = 0xccb7f73c66a69be1
+
+func NewExpWindow(s *capnp.Segment) (ExpWindow, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 0})
+	return ExpWindow{st}, err
+}
+
+func NewRootExpWindow(s *capnp.Segment) (ExpWindow, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 0})
+	return ExpWindow{st}, err
+}
+
+func ReadRootExpWindow(msg *capnp.Message) (ExpWindow, error) {
+	root, err := msg.RootPtr()
+	return ExpWindow{root.Struct()}, err
+}
+
+func (s ExpWindow) String() string {
+	str, _ := text.Marshal(0xccb7f73c66a69be1, s.Struct)
+	return str
+}
+
+func (s ExpWindow) Next() float64 {
+	return math.Float64frombits(s.Struct.Uint64(0))
+}
+
+func (s ExpWindow) SetNext(v float64) {
+	s.Struct.SetUint64(0, math.Float64bits(v))
+}
+
+func (s ExpWindow) Base() float64 {
+	return math.Float64frombits(s.Struct.Uint64(8))
+}
+
+func (s ExpWindow) SetBase(v float64) {
+	s.Struct.SetUint64(8, math.Float64bits(v))
+}
+
+// ExpWindow_List is a list of ExpWindow.
+type ExpWindow_List struct{ capnp.List }
+
+// NewExpWindow creates a new list of ExpWindow.
+func NewExpWindow_List(s *capnp.Segment, sz int32) (ExpWindow_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 16, PointerCount: 0}, sz)
+	return ExpWindow_List{l}, err
+}
+
+func (s ExpWindow_List) At(i int) ExpWindow { return ExpWindow{s.List.Struct(i)} }
+
+func (s ExpWindow_List) Set(i int, v ExpWindow) error { return s.List.SetStruct(i, v.Struct) }
+
+func (s ExpWindow_List) String() string {
+	str, _ := text.MarshalList(0xccb7f73c66a69be1, s.List)
+	return str
+}
+
+// ExpWindow_Promise is a wrapper for a ExpWindow promised by a client call.
+type ExpWindow_Promise struct{ *capnp.Pipeline }
+
+func (p ExpWindow_Promise) Struct() (ExpWindow, error) {
+	s, err := p.Pipeline.Struct()
+	return ExpWindow{s}, err
+}
+
+type PowerWindow struct{ capnp.Struct }
+
+// PowerWindow_TypeID is the unique identifier for the type PowerWindow.
+const PowerWindow_TypeID = 0xc06345e07edc6c60
+
+func NewPowerWindow(s *capnp.Segment) (PowerWindow, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 32, PointerCount: 0})
+	return PowerWindow{st}, err
+}
+
+func NewRootPowerWindow(s *capnp.Segment) (PowerWindow, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 32, PointerCount: 0})
+	return PowerWindow{st}, err
+}
+
+func ReadRootPowerWindow(msg *capnp.Message) (PowerWindow, error) {
+	root, err := msg.RootPtr()
+	return PowerWindow{root.Struct()}, err
+}
+
+func (s PowerWindow) String() string {
+	str, _ := text.Marshal(0xc06345e07edc6c60, s.Struct)
+	return str
+}
+
+func (s PowerWindow) P() int64 {
+	return int64(s.Struct.Uint64(0))
+}
+
+func (s PowerWindow) SetP(v int64) {
+	s.Struct.SetUint64(0, uint64(v))
+}
+
+func (s PowerWindow) Q() int64 {
+	return int64(s.Struct.Uint64(8))
+}
+
+func (s PowerWindow) SetQ(v int64) {
+	s.Struct.SetUint64(8, uint64(v))
+}
+
+func (s PowerWindow) R() int64 {
+	return int64(s.Struct.Uint64(16))
+}
+
+func (s PowerWindow) SetR(v int64) {
+	s.Struct.SetUint64(16, uint64(v))
+}
+
+func (s PowerWindow) S() int64 {
+	return int64(s.Struct.Uint64(24))
+}
+
+func (s PowerWindow) SetS(v int64) {
+	s.Struct.SetUint64(24, uint64(v))
+}
+
+// PowerWindow_List is a list of PowerWindow.
+type PowerWindow_List struct{ capnp.List }
+
+// NewPowerWindow creates a new list of PowerWindow.
+func NewPowerWindow_List(s *capnp.Segment, sz int32) (PowerWindow_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 32, PointerCount: 0}, sz)
+	return PowerWindow_List{l}, err
+}
+
+func (s PowerWindow_List) At(i int) PowerWindow { return PowerWindow{s.List.Struct(i)} }
+
+func (s PowerWindow_List) Set(i int, v PowerWindow) error { return s.List.SetStruct(i, v.Struct) }
+
+func (s PowerWindow_List) String() string {
+	str, _ := text.MarshalList(0xc06345e07edc6c60, s.List)
+	return str
+}
+
+// PowerWindow_Promise is a wrapper for a PowerWindow promised by a client call.
+type PowerWindow_Promise struct{ *capnp.Pipeline }
+
+func (p PowerWindow_Promise) Struct() (PowerWindow, error) {
+	s, err := p.Pipeline.Struct()
+	return PowerWindow{s}, err
+}
+
+type Stream struct{ capnp.Struct }
+type Stream_window Stream
+type Stream_window_Which uint16
+
+const (
+	Stream_window_Which_exp   Stream_window_Which = 0
+	Stream_window_Which_power Stream_window_Which = 1
+)
+
+func (w Stream_window_Which) String() string {
+	const s = "exppower"
+	switch w {
+	case Stream_window_Which_exp:
+		return s[0:3]
+	case Stream_window_Which_power:
+		return s[3:8]
+
+	}
+	return "Stream_window_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
+}
+
+// Stream_TypeID is the unique identifier for the type Stream.
+const Stream_TypeID = 0xcf7581f95c7adbb1
+
+func NewStream(s *capnp.Segment) (Stream, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 2})
+	return Stream{st}, err
+}
+
+func NewRootStream(s *capnp.Segment) (Stream, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 2})
+	return Stream{st}, err
+}
+
+func ReadRootStream(msg *capnp.Message) (Stream, error) {
+	root, err := msg.RootPtr()
+	return Stream{root.Struct()}, err
+}
+
+func (s Stream) String() string {
+	str, _ := text.Marshal(0xcf7581f95c7adbb1, s.Struct)
+	return str
+}
+
+func (s Stream) Id() int64 {
+	return int64(s.Struct.Uint64(0))
+}
+
+func (s Stream) SetId(v int64) {
+	s.Struct.SetUint64(0, uint64(v))
+}
+
+func (s Stream) Operators() (OpType_List, error) {
+	p, err := s.Struct.Ptr(0)
+	return OpType_List{List: p.List()}, err
+}
+
+func (s Stream) HasOperators() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s Stream) SetOperators(v OpType_List) error {
+	return s.Struct.SetPtr(0, v.List.ToPtr())
+}
+
+// NewOperators sets the operators field to a newly
+// allocated OpType_List, preferring placement in s's segment.
+func (s Stream) NewOperators(n int32) (OpType_List, error) {
+	l, err := NewOpType_List(s.Struct.Segment(), n)
+	if err != nil {
+		return OpType_List{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
+}
+
+func (s Stream) Window() Stream_window { return Stream_window(s) }
+
+func (s Stream_window) Which() Stream_window_Which {
+	return Stream_window_Which(s.Struct.Uint16(8))
+}
+func (s Stream_window) Exp() (ExpWindow, error) {
+	if s.Struct.Uint16(8) != 0 {
+		panic("Which() != exp")
+	}
+	p, err := s.Struct.Ptr(1)
+	return ExpWindow{Struct: p.Struct()}, err
+}
+
+func (s Stream_window) HasExp() bool {
+	if s.Struct.Uint16(8) != 0 {
+		return false
+	}
+	p, err := s.Struct.Ptr(1)
+	return p.IsValid() || err != nil
+}
+
+func (s Stream_window) SetExp(v ExpWindow) error {
+	s.Struct.SetUint16(8, 0)
+	return s.Struct.SetPtr(1, v.Struct.ToPtr())
+}
+
+// NewExp sets the exp field to a newly
+// allocated ExpWindow struct, preferring placement in s's segment.
+func (s Stream_window) NewExp() (ExpWindow, error) {
+	s.Struct.SetUint16(8, 0)
+	ss, err := NewExpWindow(s.Struct.Segment())
+	if err != nil {
+		return ExpWindow{}, err
+	}
+	err = s.Struct.SetPtr(1, ss.Struct.ToPtr())
+	return ss, err
+}
+
+func (s Stream_window) Power() (PowerWindow, error) {
+	if s.Struct.Uint16(8) != 1 {
+		panic("Which() != power")
+	}
+	p, err := s.Struct.Ptr(1)
+	return PowerWindow{Struct: p.Struct()}, err
+}
+
+func (s Stream_window) HasPower() bool {
+	if s.Struct.Uint16(8) != 1 {
+		return false
+	}
+	p, err := s.Struct.Ptr(1)
+	return p.IsValid() || err != nil
+}
+
+func (s Stream_window) SetPower(v PowerWindow) error {
+	s.Struct.SetUint16(8, 1)
+	return s.Struct.SetPtr(1, v.Struct.ToPtr())
+}
+
+// NewPower sets the power field to a newly
+// allocated PowerWindow struct, preferring placement in s's segment.
+func (s Stream_window) NewPower() (PowerWindow, error) {
+	s.Struct.SetUint16(8, 1)
+	ss, err := NewPowerWindow(s.Struct.Segment())
+	if err != nil {
+		return PowerWindow{}, err
+	}
+	err = s.Struct.SetPtr(1, ss.Struct.ToPtr())
+	return ss, err
+}
+
+// Stream_List is a list of Stream.
+type Stream_List struct{ capnp.List }
+
+// NewStream creates a new list of Stream.
+func NewStream_List(s *capnp.Segment, sz int32) (Stream_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 16, PointerCount: 2}, sz)
+	return Stream_List{l}, err
+}
+
+func (s Stream_List) At(i int) Stream { return Stream{s.List.Struct(i)} }
+
+func (s Stream_List) Set(i int, v Stream) error { return s.List.SetStruct(i, v.Struct) }
+
+func (s Stream_List) String() string {
+	str, _ := text.MarshalList(0xcf7581f95c7adbb1, s.List)
+	return str
+}
+
+// Stream_Promise is a wrapper for a Stream promised by a client call.
+type Stream_Promise struct{ *capnp.Pipeline }
+
+func (p Stream_Promise) Struct() (Stream, error) {
+	s, err := p.Pipeline.Struct()
+	return Stream{s}, err
+}
+
+func (p Stream_Promise) Window() Stream_window_Promise { return Stream_window_Promise{p.Pipeline} }
+
+// Stream_window_Promise is a wrapper for a Stream_window promised by a client call.
+type Stream_window_Promise struct{ *capnp.Pipeline }
+
+func (p Stream_window_Promise) Struct() (Stream_window, error) {
+	s, err := p.Pipeline.Struct()
+	return Stream_window{s}, err
+}
+
+func (p Stream_window_Promise) Exp() ExpWindow_Promise {
+	return ExpWindow_Promise{Pipeline: p.Pipeline.GetPipeline(1)}
+}
+
+func (p Stream_window_Promise) Power() PowerWindow_Promise {
+	return PowerWindow_Promise{Pipeline: p.Pipeline.GetPipeline(1)}
+}
+
+type DB struct{ capnp.Struct }
+
+// DB_TypeID is the unique identifier for the type DB.
+const DB_TypeID = 0xa008ac86fde19106
+
+func NewDB(s *capnp.Segment) (DB, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
+	return DB{st}, err
+}
+
+func NewRootDB(s *capnp.Segment) (DB, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
+	return DB{st}, err
+}
+
+func ReadRootDB(msg *capnp.Message) (DB, error) {
+	root, err := msg.RootPtr()
+	return DB{root.Struct()}, err
+}
+
+func (s DB) String() string {
+	str, _ := text.Marshal(0xa008ac86fde19106, s.Struct)
+	return str
+}
+
+func (s DB) StreamIds() (capnp.Int64List, error) {
+	p, err := s.Struct.Ptr(0)
+	return capnp.Int64List{List: p.List()}, err
+}
+
+func (s DB) HasStreamIds() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s DB) SetStreamIds(v capnp.Int64List) error {
+	return s.Struct.SetPtr(0, v.List.ToPtr())
+}
+
+// NewStreamIds sets the streamIds field to a newly
+// allocated capnp.Int64List, preferring placement in s's segment.
+func (s DB) NewStreamIds(n int32) (capnp.Int64List, error) {
+	l, err := capnp.NewInt64List(s.Struct.Segment(), n)
+	if err != nil {
+		return capnp.Int64List{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
+}
+
+// DB_List is a list of DB.
+type DB_List struct{ capnp.List }
+
+// NewDB creates a new list of DB.
+func NewDB_List(s *capnp.Segment, sz int32) (DB_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
+	return DB_List{l}, err
+}
+
+func (s DB_List) At(i int) DB { return DB{s.List.Struct(i)} }
+
+func (s DB_List) Set(i int, v DB) error { return s.List.SetStruct(i, v.Struct) }
+
+func (s DB_List) String() string {
+	str, _ := text.MarshalList(0xa008ac86fde19106, s.List)
+	return str
+}
+
+// DB_Promise is a wrapper for a DB promised by a client call.
+type DB_Promise struct{ *capnp.Pipeline }
+
+func (p DB_Promise) Struct() (DB, error) {
+	s, err := p.Pipeline.Struct()
+	return DB{s}, err
+}
+
+const schema_91f0805429cab961 = "x\xda|T]h\x1ce\x14\xbd\xe7\xfbf\xb2\xd1\xa4" +
+	"n\xc6Y\x88\xae?\x8b\x12\xa1\x89\xb6\xa6\x8d}0\x88" +
+	"i%\x01+\x0d\xcd\x97l\x11J\x0b\xfd\xb2;\xa5\x8b" +
+	";;\xd3\x9dYw#V\x1a\xa8\xa1\x95\x0a\x06\x04\x05" +
+	"_|\xf2I\x10\x9fDD\xe2\xcf\x93?E\xf1\xb5\x0a" +
+	"V(>\x09\x1aP\x11\xa9#wv3\xb3\x8cY\x9f" +
+	"\xf6\xce\xe1\xec\xbdg\xce=w\xa6\xa7\xc5aq\xc0," +
+	"I\"5a\x0eE\xc5CW\xcb\x0folm\x905" +
+	".\"\xfd\xe1\x97\x93\xe5\x8b\xbfn\x12\xc1na\xdb^" +
+	"G\x8e\xc8\xbe\x807\x08\xd1\xd0\xe6\x8d[\x1b\xef\x0e\xbf" +
+	"M\xd68R\xa2\x193>\xc5w\xf6\xb5\xb8\xfa\x02s" +
+	"\x84\xe8L\xfd\xfb\x97~\\\xa8|Bj\x1cFJ6" +
+	"rD3\xb7P\x84\xbdG0\xf96\xf13!\xba\xe7" +
+	"\xa3W>\x9b\xb8\xbe\xfd9\xa9\xfb!\xa2\xf7\xaf\xbfp" +
+	"\xea\xaf\xf5\xd67tB\xe4 `\xcc\xfc \xa6@\xb0" +
+	"o\x8a6!Z\x9b\xdezh\xf6\xf8\xe8W\xdcXf" +
+	"\x1a\x1f\x91\xb7\xc3V\x92\x1b/\xca\xf7\x08\xd1\x8d\xb7\xde" +
+	"9\xfb\xc4\x9f\x1f|\xcdd\x91!\xdfd\xf2\xef1\xf9" +
+	"7\xc9\x9d\xf3?m=\xf3\xc8\xe2\x1f\xd72d\x93\x85" +
+	"\xce,\x1a'ak\xfe\xa3}\xda`\xcd\x89\xca]\xd8" +
+	"\xf6\x09s\xdb\xd6fL6Y\xc7\xdf\x1f\x9f\xbe\xb2y" +
+	"\xe8\xc9o3n\xc4\xd6\xcd\xfcb.\xc3\xc6P\xec\x8c" +
+	"Y\x02!\xf2\x9b^\xe8\x05\x8f\x06\xa2\xe5\xba\xba\xb9V" +
+	"]\xdd_\xd1~\xc3\x9f=^\xf2\xcbk\xbe\xb3\x04\xa8" +
+	"\xbb \x88\xac#\x07\x89\x00\xeb\xf1\x07\x89 \xac\x03\xfc" +
+	"$\xadI~2\xac\x07\xf8\xc7\xb4\xee\x9e\"*U\xbc" +
+	"V#\xcc\x05-\xb7\xb4Z\xf7<7Wq\x83\x9c\xab" +
+	";\xf9\xb3M\xe7\xfc\xc0i\xf3x\x8a'\x19\xd2 2" +
+	"@d\xedY&R\xa3\x12j\xaf@\x14\x84MG\xbb" +
+	"G\xab\x84\x00w\x10\x96$`\x92\xe02i(3\x0d" +
+	"\x97\xbc\xb6\xd3|\xb6\xd6\xa8J\xaf\xcd\x9d\xc7\x92\xce\xfa" +
+	"N\"uJB\x9d\x13\xb0\x80\x02\x18t\x18<#\xa1" +
+	"\xea\x02\x96\x10\x85\xf8\x8dk\x0cV%\x94/`IY" +
+	"\x80$\xb2\\\x06\xcfI\xa8P\x00~\xac\xc3$\xe0|" +
+	"R5\x93*\xd8\xa9\x06\xaa\\\x89_l\x7f\xbb\x96o" +
+	"T\xbd\xb6\x1a\x96\xc6\xbdQ\x84\xeet\xb6VMH\xa8" +
+	"i\x81\xfb\xf0\x0f\xc3<\x7f\xdfA\"\xb5WB=&" +
+	"\x90s:>\xc6\xd2\xe4\x110F(\xf9\xfc\xee\x18K" +
+	"\xef\xa2\x8b\x0fT1\xafC]\xd6\xabu\x87\x88\xad\x1a" +
+	"M\xacZ\xe0Y\x87%\xd4\xb1>\xab\x8e\xb2\xaey\x09" +
+	"\xb5\xd4g\xd5\"\x83OK\xa8\xb2@7\x01\x18!\x81" +
+	"\x11\x02\xef>\xa9\x83\x96\xbbS\x0fT\xb3\xd0\xf1yo" +
+	"^\xbb\xabf8Q39\x95\x1a\x92\xa8\xd97\x95\xda" +
+	"\x91o8\x9ddn~U\x07\xce\x7f\x86\x19\xd9\x980" +
+	"~L7\xaa\xaen>\xb7{\\\x8a\xbb\xc5\xa5\x98\xc6" +
+	"\x05;i9\xd9\x0b\xc6%NKo[\xeb\xb3D\xea" +
+	"E\x09\xf5\xa6\x80\x0c\x93@\xc8\xd0I\xb2\x11\xd6\\'" +
+	"\x08\xb5K\xd2\xcf\xa6{\xeey]o9\x09:\x92\xc9" +
+	"|\xf6\x88VJq\x9c2;,\xa6;LV\xb8\xdc" +
+	"\xdbV\x95\xe5\xa3\xef\xa3h\xe9Y\x12\xb2VM\xd4y" +
+	"\xbe\xd3\xd4\xa1\xd7\xec;\xbd|\xfa\x15'\xc42\xdb\xf1" +
+	"\xbe\xfe\xdf\xe4\x95.\x18\xaf\x16\xb1\xc7\x85D\xe3\x05\xd6" +
+	"\xd8\xe9Y\xb7#r\xbd\xd8\xb3\xeer_\xce^f\xf0" +
+	"\xa2\x84\xba\xdaw\x92W\x18\xbc$\xa1^\x13\x80Q\x80" +
+	"Ad\xbd\xca\xc6_\x96P\xaf\x0f2^VR\xb4\x92" +
+	"\xa0s\x9e\xcf\xe7\x80\xb1\xf4\xe3\xdf\xbd\x9e\x7f\x03\x00\x00" +
+	"\xff\xff\xee]\x90\xe2"
 
 func init() {
 	schemas.Register(schema_91f0805429cab961,
 		0x86bf862b548c351a,
+		0xa008ac86fde19106,
+		0xc06345e07edc6c60,
+		0xc3f2db24c28abb1b,
 		0xcb0c4f3a25bf3079,
+		0xccb7f73c66a69be1,
 		0xcdf64d2c4abfe20f,
+		0xcf7581f95c7adbb1,
 		0xd03e3591895dbdfb)
 }
