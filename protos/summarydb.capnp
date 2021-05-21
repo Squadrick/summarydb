@@ -34,7 +34,6 @@ struct ProtoLandmarkWindow {
 }
 
 struct ExpWindow {
-    next @0 :Float64;
     base @1 :Float64;
 }
 

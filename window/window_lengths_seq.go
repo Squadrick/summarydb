@@ -69,7 +69,7 @@ func (seq *ExponentialLengthsSequence) Serialize(windowProto *protos.Stream_wind
 	if err != nil {
 		panic(err)
 	}
-	proto.SetNext(seq.next)
+	//proto.SetNext(seq.next)
 	proto.SetBase(seq.base)
 }
 
@@ -78,14 +78,14 @@ func (seq *ExponentialLengthsSequence) Deserialize(windowProto *protos.Stream_wi
 	if err != nil {
 		panic(err)
 	}
-	seq.next = expProto.Next()
+	//seq.next = expProto.Next()
 	seq.base = expProto.Base()
 }
 
 func (seq *ExponentialLengthsSequence) Equals(other LengthsSequence) bool {
 	switch exp := other.(type) {
 	case *ExponentialLengthsSequence:
-		return seq.next == exp.next && seq.base == seq.base
+		return seq.base == exp.base
 	default:
 		return false
 	}
