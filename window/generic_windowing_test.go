@@ -44,7 +44,7 @@ func (seq *TestSeq) MaxWindowSize() int64 {
 	return math.MaxUint32
 }
 
-func (seq *TestSeq) Serialize(*protos.Stream_window) {}
+func (seq *TestSeq) Serialize(*protos.Stream_window)   {}
 func (seq *TestSeq) Deserialize(*protos.Stream_window) {}
 func (seq *TestSeq) Equals(sequence LengthsSequence) bool {
 	return true

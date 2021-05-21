@@ -5,28 +5,16 @@ import "reflect"
 
 // TODO: Remove op names entirely. Only work with ops and op protos.
 
-func GetOpFromName(opName string) Op {
-	if opName == "sum" {
-		return NewSumOp()
-	} else if opName == "count" {
-		return NewCountOp()
-	} else if opName == "max" {
-		return NewMaxOp()
-	} else {
-		return nil
-	}
+var OpTypeOpStringMap = map[protos.OpType]string{
+	protos.OpType_sum:   "sum",
+	protos.OpType_count: "count",
+	protos.OpType_max:   "max",
 }
 
-func GetOpNameFromOpType(opType protos.OpType) string {
-	if opType == protos.OpType_sum {
-		return "sum"
-	} else if opType == protos.OpType_count {
-		return "count"
-	} else if opType == protos.OpType_max {
-		return "max"
-	} else {
-		return ""
-	}
+var OpNameOpTypeMap = map[string]Op{
+	"sum":   NewSumOp(),
+	"count": NewCountOp(),
+	"max":   NewMaxOp(),
 }
 
 type OpSet struct {
@@ -36,12 +24,7 @@ type OpSet struct {
 func NewOpSet(operatorNames []string) *OpSet {
 	ops := make(map[string]Op)
 	for _, operatorName := range operatorNames {
-		op := GetOpFromName(operatorName)
-		if op == nil {
-			// invalid op
-			continue
-		}
-		ops[operatorName] = GetOpFromName(operatorName)
+		ops[operatorName] = OpNameOpTypeMap[operatorName]
 	}
 	return &OpSet{ops: ops}
 }
@@ -49,7 +32,7 @@ func NewOpSet(operatorNames []string) *OpSet {
 func OpProtosToOpNames(opsProto protos.OpType_List) []string {
 	opNames := make([]string, opsProto.Len())
 	for i := 0; i < opsProto.Len(); i += 1 {
-		opNames[i] = GetOpNameFromOpType(opsProto.At(i))
+		opNames[i] = OpTypeOpStringMap[opsProto.At(i)]
 	}
 	return opNames
 }

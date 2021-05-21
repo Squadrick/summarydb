@@ -30,3 +30,41 @@ func TestStream_Serialize_Deserialize_Power(t *testing.T) {
 	power := window.NewPowerLengthsSequence(1, 2, 3, 4)
 	testStreamSerializeDeserialize(t, power)
 }
+
+func BenchmarkStream_Serialize(b *testing.B) {
+	power := window.NewPowerLengthsSequence(1, 2, 3, 4)
+	windowing := window.NewGenericWindowing(power)
+
+	stream := NewStream([]string{"count", "max", "sum"},
+		windowing)
+
+	for n := 0; n < b.N; n++ {
+		_ = stream.Serialize()
+	}
+}
+
+func BenchmarkStream_Deserialize(b *testing.B) {
+	power := window.NewPowerLengthsSequence(1, 2, 3, 4)
+	windowing := window.NewGenericWindowing(power)
+
+	stream := NewStream([]string{"count", "max", "sum"},
+		windowing)
+
+	bytes := stream.Serialize()
+	for n := 0; n < b.N; n++ {
+		_ = DeserializeStream(bytes)
+	}
+}
+
+func BenchmarkStream_SerializeDeserialize(b *testing.B) {
+	power := window.NewPowerLengthsSequence(1, 2, 3, 4)
+	windowing := window.NewGenericWindowing(power)
+
+	stream := NewStream([]string{"count", "max", "sum"},
+		windowing)
+
+	for n := 0; n < b.N; n++ {
+		bytes := stream.Serialize()
+		_ = DeserializeStream(bytes)
+	}
+}
