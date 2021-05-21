@@ -2,9 +2,14 @@ package core
 
 import (
 	"context"
+	"summarydb/protos"
 	"summarydb/storage"
 	"summarydb/window"
+	"sync/atomic"
+	capnp "zombiezen.com/go/capnproto2"
 )
+
+var gStreamIdCounter int64 = 0
 
 type Stream struct {
 	streamId int64
@@ -14,19 +19,32 @@ type Stream struct {
 
 func NewStream(
 	operatorNames []string,
-	windowing window.Windowing,
-	config *StoreConfig) *Stream {
-	manager := NewStreamWindowManager(0, operatorNames)
+	windowing window.Windowing) *Stream {
+	defer atomic.AddInt64(&gStreamIdCounter, 1)
+	return NewStreamWithId(gStreamIdCounter, operatorNames, windowing)
+}
 
+func NewStreamWithId(
+	id int64,
+	operatorNames []string,
+	windowing window.Windowing) *Stream {
+	manager := NewStreamWindowManager(id, operatorNames)
 	pipeline := NewPipeline(windowing)
-	pipeline.SetBufferSize(config.EachBufferSize)
-	pipeline.SetWindowsPerMerge(config.WindowsPerMerge)
-
 	return &Stream{
-		streamId: 0,
+		streamId: id,
 		pipeline: pipeline,
 		manager:  manager,
 	}
+}
+
+func (stream *Stream) SetConfig(config *StoreConfig) *Stream {
+	stream.pipeline.SetBufferSize(config.EachBufferSize)
+	stream.pipeline.SetWindowsPerMerge(config.WindowsPerMerge)
+	return stream
+}
+
+func (stream *Stream) Run(ctx context.Context) {
+	stream.pipeline.Run(ctx)
 }
 
 func (stream *Stream) SetBackend(backend storage.Backend, cacheEnabled bool) {
@@ -70,4 +88,63 @@ func (stream *Stream) Query(
 		startTime,
 		endTime,
 		params)
+}
+
+func (stream *Stream) Serialize() []byte {
+	msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	streamProto, err := protos.NewRootStream(seg)
+	if err != nil {
+		panic(err)
+	}
+
+	// ID
+	streamProto.SetId(stream.streamId)
+
+	// Operators
+	opSet := stream.manager.operators
+	opProtoList, err := streamProto.NewOperators(int32(len(opSet.ops)))
+	if err != nil {
+		panic(err)
+	}
+	it := 0
+	for _, v := range opSet.ops {
+		opProtoList.Set(it, v.GetOpType())
+		it += 1
+	}
+
+	// Windowing
+	seq := stream.pipeline.windowing.GetSeq()
+	windowProto := streamProto.Window()
+	seq.Serialize(&windowProto)
+
+	// Marshal
+	buf, err := msg.Marshal()
+	if err != nil {
+		panic(err)
+	}
+	return buf
+}
+
+func DeserializeStream(buf []byte) *Stream {
+	msg, err := capnp.Unmarshal(buf)
+	if err != nil {
+		panic(err)
+	}
+
+	streamProto, err := protos.ReadRootStream(msg)
+	if err != nil {
+		panic(err)
+	}
+
+	id := streamProto.Id()
+	ops, err := streamProto.Operators()
+	if err != nil {
+		panic(err)
+	}
+	opNames := OpProtosToOpNames(ops)
+
+	windowProto := streamProto.Window()
+	seq := window.DeserializeLengthsSequence(&windowProto)
+	windowing := window.NewGenericWindowing(seq)
+	return NewStreamWithId(id, opNames, windowing)
 }

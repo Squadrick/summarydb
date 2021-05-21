@@ -15,6 +15,10 @@ func NewMaxOp() *MaxOp {
 	}
 }
 
+func (op *MaxOp) GetOpType() protos.OpType {
+	return op.OpType
+}
+
 func (op *MaxOp) Apply(retData, aggData *DataTable, insertValue float64, _ int64) {
 	retData.Max.Value = math.Max(aggData.Max.Value, insertValue)
 }

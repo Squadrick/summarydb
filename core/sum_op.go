@@ -15,6 +15,10 @@ func NewSumOp() *SumOp {
 	}
 }
 
+func (op *SumOp) GetOpType() protos.OpType {
+	return op.OpType
+}
+
 func (op *SumOp) Apply(retData, aggData *DataTable, insertValue float64, _ int64) {
 	retData.Sum.Value = aggData.Sum.Value + insertValue
 }

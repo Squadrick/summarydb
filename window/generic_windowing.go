@@ -39,6 +39,10 @@ func NewGenericWindowing(lengthSeq LengthsSequence) *GenericWindowing {
 	return genericWindow
 }
 
+func (gwin *GenericWindowing) GetSeq() LengthsSequence {
+	return gwin.lengthSeq
+}
+
 func (gwin *GenericWindowing) addWindow(length int64) {
 	gwin.lastWindowStart += gwin.lastWindowLength
 	if length > gwin.lastWindowLength {

@@ -86,6 +86,10 @@ func (pwin *PowerWindowing) addOne() {
 	pwin.firstMarkerToLength.Insert(&lastMarkerKey, pwin.lastLength)
 }
 
+func (pwin *PowerWindowing) GetSeq() LengthsSequence {
+	return NewPowerLengthsSequence(pwin.p, pwin.q, pwin.R, pwin.S)
+}
+
 func (pwin *PowerWindowing) addUntilLength(targetLength int64) {
 	if pwin.q != 0 {
 		for pwin.lastLength < targetLength {

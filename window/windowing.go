@@ -1,6 +1,8 @@
 package window
 
 type Windowing interface {
+	GetSeq() LengthsSequence
+
 	// Return the first T' >= T such that at T', the interval [l, r]
 	// is contained inside a single window.
 	GetFirstContainingTime(Tl, Tr, T int64) (int64, bool)

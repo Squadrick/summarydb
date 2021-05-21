@@ -3,6 +3,7 @@ package window
 import (
 	"github.com/stretchr/testify/assert"
 	"math"
+	"summarydb/protos"
 	"testing"
 )
 
@@ -41,6 +42,12 @@ func (seq *TestSeq) NextWindowLength() int64 {
 
 func (seq *TestSeq) MaxWindowSize() int64 {
 	return math.MaxUint32
+}
+
+func (seq *TestSeq) Serialize(*protos.Stream_window) {}
+func (seq *TestSeq) Deserialize(*protos.Stream_window) {}
+func (seq *TestSeq) Equals(sequence LengthsSequence) bool {
+	return true
 }
 
 func TestGenericWindowing_GetSizeOfFirstWindow(t *testing.T) {

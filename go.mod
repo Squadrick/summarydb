@@ -6,6 +6,7 @@ require (
 	github.com/dgraph-io/badger/v2 v2.2007.2
 	github.com/dgraph-io/ristretto v0.0.3
 	github.com/kr/pretty v0.2.0 // indirect
+	github.com/magiconair/properties v1.8.0
 	github.com/philhofer/fwd v1.0.0 // indirect
 	github.com/stretchr/testify v1.4.0
 	github.com/tinylib/msgp v1.1.2 // indirect
