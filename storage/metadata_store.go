@@ -11,7 +11,7 @@ type MetadataStore interface {
 }
 
 type SimpleMetadataStore struct {
-	db []byte
+	db      []byte
 	streams map[int64][]byte
 }
 

@@ -16,7 +16,7 @@ func NewBadgerMetadataStore(db *badger.DB) *BadgerMetadataStore {
 }
 
 func (bms *BadgerMetadataStore) PutDB(buf []byte) error {
-	return bms.db.Update(func (txn *badger.Txn) error {
+	return bms.db.Update(func(txn *badger.Txn) error {
 		return txn.Set([]byte(DbKey), buf)
 	})
 }

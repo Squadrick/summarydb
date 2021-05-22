@@ -13,7 +13,7 @@ var gStreamIdCounter int64 = 0
 
 type DB struct {
 	backend storage.Backend
-	mds storage.MetadataStore
+	mds     storage.MetadataStore
 	streams map[int64]*Stream
 }
 

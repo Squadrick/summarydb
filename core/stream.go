@@ -33,7 +33,7 @@ func (stream *Stream) SetConfig(config *StoreConfig) *Stream {
 	return stream
 }
 
-func (stream *Stream) SetBackend(backend storage.Backend, cacheEnabled bool) *Stream{
+func (stream *Stream) SetBackend(backend storage.Backend, cacheEnabled bool) *Stream {
 	stream.manager.SetBackingStore(NewBackingStore(backend, cacheEnabled))
 	stream.pipeline.SetWindowManager(stream.manager)
 	return stream
