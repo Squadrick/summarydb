@@ -5,23 +5,13 @@ import (
 	"summarydb/protos"
 	"summarydb/storage"
 	"summarydb/window"
-	"sync/atomic"
 	capnp "zombiezen.com/go/capnproto2"
 )
-
-var gStreamIdCounter int64 = 0
 
 type Stream struct {
 	streamId int64
 	pipeline *Pipeline
 	manager  *StreamWindowManager
-}
-
-func NewStream(
-	operatorNames []string,
-	windowing window.Windowing) *Stream {
-	defer atomic.AddInt64(&gStreamIdCounter, 1)
-	return NewStreamWithId(gStreamIdCounter, operatorNames, windowing)
 }
 
 func NewStreamWithId(
@@ -40,6 +30,11 @@ func NewStreamWithId(
 func (stream *Stream) SetConfig(config *StoreConfig) *Stream {
 	stream.pipeline.SetBufferSize(config.EachBufferSize)
 	stream.pipeline.SetWindowsPerMerge(config.WindowsPerMerge)
+	return stream
+}
+
+func (stream *Stream) SetBackingStore(store *BackingStore) *Stream {
+	stream.manager.SetBackingStore(store)
 	return stream
 }
 
@@ -62,10 +57,6 @@ func (stream *Stream) Flush() {
 
 func (stream *Stream) Shutdown() {
 	stream.pipeline.Flush(true)
-}
-
-func (stream *Stream) StartPipeline(ctx context.Context) {
-	stream.pipeline.Run(ctx)
 }
 
 func (stream *Stream) Query(

@@ -8,7 +8,7 @@ import (
 
 func testStreamSerializeDeserialize(t *testing.T, seq window.LengthsSequence) {
 	windowing := window.NewGenericWindowing(seq)
-	stream := NewStream([]string{"count", "max", "sum"},
+	stream := NewStreamWithId(0, []string{"count", "max", "sum"},
 		windowing)
 	bytes := stream.Serialize()
 
@@ -35,7 +35,7 @@ func BenchmarkStream_Serialize(b *testing.B) {
 	power := window.NewPowerLengthsSequence(1, 2, 3, 4)
 	windowing := window.NewGenericWindowing(power)
 
-	stream := NewStream([]string{"count", "max", "sum"},
+	stream := NewStreamWithId(0, []string{"count", "max", "sum"},
 		windowing)
 
 	for n := 0; n < b.N; n++ {
@@ -47,7 +47,7 @@ func BenchmarkStream_Deserialize(b *testing.B) {
 	power := window.NewPowerLengthsSequence(1, 2, 3, 4)
 	windowing := window.NewGenericWindowing(power)
 
-	stream := NewStream([]string{"count", "max", "sum"},
+	stream := NewStreamWithId(0, []string{"count", "max", "sum"},
 		windowing)
 
 	bytes := stream.Serialize()
@@ -60,7 +60,7 @@ func BenchmarkStream_SerializeDeserialize(b *testing.B) {
 	power := window.NewPowerLengthsSequence(1, 2, 3, 4)
 	windowing := window.NewGenericWindowing(power)
 
-	stream := NewStream([]string{"count", "max", "sum"},
+	stream := NewStreamWithId(0, []string{"count", "max", "sum"},
 		windowing)
 
 	for n := 0; n < b.N; n++ {
