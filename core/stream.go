@@ -33,18 +33,14 @@ func (stream *Stream) SetConfig(config *StoreConfig) *Stream {
 	return stream
 }
 
-func (stream *Stream) SetBackingStore(store *BackingStore) *Stream {
-	stream.manager.SetBackingStore(store)
+func (stream *Stream) SetBackend(backend storage.Backend, cacheEnabled bool) *Stream{
+	stream.manager.SetBackingStore(NewBackingStore(backend, cacheEnabled))
+	stream.pipeline.SetWindowManager(stream.manager)
 	return stream
 }
 
 func (stream *Stream) Run(ctx context.Context) {
 	stream.pipeline.Run(ctx)
-}
-
-func (stream *Stream) SetBackend(backend storage.Backend, cacheEnabled bool) {
-	stream.manager.SetBackingStore(NewBackingStore(backend, cacheEnabled))
-	stream.pipeline.SetWindowManager(stream.manager)
 }
 
 func (stream *Stream) Append(timestamp int64, value float64) {
@@ -55,7 +51,7 @@ func (stream *Stream) Flush() {
 	stream.pipeline.Flush(false)
 }
 
-func (stream *Stream) Shutdown() {
+func (stream *Stream) Close() {
 	stream.pipeline.Flush(true)
 }
 

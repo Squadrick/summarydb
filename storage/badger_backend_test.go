@@ -34,7 +34,7 @@ func TestGetKeyLandmark(t *testing.T) {
 }
 
 func TestBadgerBackend_Summary(t *testing.T) {
-	testConfig := TestBadgerBackendConfig()
+	testConfig := TestBadgerDB()
 	badger := NewBadgerBacked(testConfig)
 
 	window := []byte{0, 1, 2, 3, 4, 5}
@@ -45,7 +45,7 @@ func TestBadgerBackend_Summary(t *testing.T) {
 }
 
 func TestBadgerBackend_IterateIndex(t *testing.T) {
-	testConfig := TestBadgerBackendConfig()
+	testConfig := TestBadgerDB()
 	badger := NewBadgerBacked(testConfig)
 	testIterateIndex(t, badger)
 }

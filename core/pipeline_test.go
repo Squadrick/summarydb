@@ -183,7 +183,7 @@ func TestPipeline_Run_Memory(t *testing.T) {
 }
 
 func TestPipeline_Run_Badger(t *testing.T) {
-	backend := storage.NewBadgerBacked(storage.TestBadgerBackendConfig())
+	backend := storage.NewBadgerBacked(storage.TestBadgerDB())
 	testPipelineFinalStep(t, backend)
 }
 
@@ -195,7 +195,7 @@ func benchmarkPipeline(b *testing.B,
 	numBuffers int64,
 	windowsPerBatch int64) {
 	manager := NewStreamWindowManager(0, []string{"count"})
-	backend := storage.NewBadgerBacked(storage.TestBadgerBackendConfig())
+	backend := storage.NewBadgerBacked(storage.TestBadgerDB())
 	manager.SetBackingStore(NewBackingStore(backend, true))
 	pipeline := NewPipeline(windowing).
 		SetBufferSize(totalBufferSize).

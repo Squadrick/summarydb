@@ -82,7 +82,7 @@ func generateHeap(heapSize int,
 }
 
 func TestHeap(t *testing.T) {
-	backend := storage.NewBadgerBacked(storage.TestBadgerBackendConfig())
+	backend := storage.NewBadgerBacked(storage.TestBadgerDB())
 	store := NewBackingStore(backend, false)
 	testSize := 1000
 

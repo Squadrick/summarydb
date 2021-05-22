@@ -52,7 +52,7 @@ func TestStreamWindowManager_InMemory(t *testing.T) {
 }
 
 func TestStreamWindowManager_Badger(t *testing.T) {
-	config := storage.TestBadgerBackendConfig()
+	config := storage.TestBadgerDB()
 	backend := storage.NewBadgerBacked(config)
 	defer backend.Close()
 	testStreamWindowManager(t, backend)
@@ -85,7 +85,7 @@ func TestStreamWindowManagerMerge_InMemory(t *testing.T) {
 }
 
 func TestStreamWindowManagerMerge_Badger(t *testing.T) {
-	config := storage.TestBadgerBackendConfig()
+	config := storage.TestBadgerDB()
 	backend := storage.NewBadgerBacked(config)
 	defer backend.Close()
 	testStreamWindowManagerMerge(t, backend)

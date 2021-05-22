@@ -7,28 +7,20 @@ import (
 	"math"
 )
 
-type BadgerBackendConfig struct {
-	Path     string
-	InMemory bool
-}
-
-func TestBadgerBackendConfig() *BadgerBackendConfig {
-	return &BadgerBackendConfig{
-		Path:     "",
-		InMemory: true,
+func TestBadgerDB() *badger.DB {
+	option := badger.DefaultOptions("").WithInMemory(true)
+	db, err := badger.Open(option)
+	if err != nil {
+		panic(err)
 	}
+	return db
 }
 
 type BadgerBackend struct {
 	db *badger.DB
 }
 
-func NewBadgerBacked(config *BadgerBackendConfig) *BadgerBackend {
-	option := badger.DefaultOptions(config.Path).WithInMemory(config.InMemory)
-	db, err := badger.Open(option)
-	if err != nil {
-		log.Fatal(err)
-	}
+func NewBadgerBacked(db *badger.DB) *BadgerBackend {
 	return &BadgerBackend{db: db}
 }
 
@@ -47,14 +39,10 @@ func (backend *BadgerBackend) txnGet(key []byte) []byte {
 			return err
 		}
 		windowBytes, err = item.ValueCopy(nil)
-
-		if err != nil {
-			return err
-		}
-		return nil
+		return err
 	})
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 	return windowBytes
 }
