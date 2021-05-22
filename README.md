@@ -29,6 +29,38 @@ On generic data, it supports:
 
 ---
 
+### Example
+
+```go
+
+package main
+
+import "summarydb"
+
+func main() {
+    db := summarydb.NewDB()
+    // OR
+    db := summarydb.OpenDB("/path/to/db")
+    defer db.Close()
+
+    seq := summarydb.windowing.ExponentialLengthsSequence(2)
+    stream := db.NewStream([]string{"sum", "max"}, seq).Run()
+
+    stream.Append(0, 10.0)
+    stream.Append(1, 11.0)
+    stream.Append(2, 12.0)
+    stream.Append(3, 13.0)
+    stream.Append(4, 14.0)
+
+    // Get sum between t=1 and t=3 
+    aggResult := stream.Query("sum", 1, 3, nil)
+    result := aggResult.value
+    error := aggResult.error
+}
+```
+
+---
+
 ### Dependencies
 
 1. [BadgerDB](https://github.com/dgraph-io/badger) is the persistent key-value
