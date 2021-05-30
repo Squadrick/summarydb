@@ -35,16 +35,22 @@ On generic data, it supports:
 
 package main
 
-import "summarydb"
+import (
+    "context"
+    "summarydb"
+)
 
 func main() {
-    db := summarydb.NewDB()
+    db := summarydb.New("/path/to/db")
     // OR
-    db := summarydb.OpenDB("/path/to/db")
+    db := summarydb.Open("/path/to/db")
     defer db.Close()
 
-    seq := summarydb.windowing.ExponentialLengthsSequence(2)
-    stream := db.NewStream([]string{"sum", "max"}, seq).Run()
+    seq := summarydb.window.ExponentialLengthsSequence(2)
+    ctx, cancelFunc := context.WithCancel(context.Background())
+    defer cancelFunc()
+
+    stream := db.NewStream([]string{"sum", "max"}, seq).Run(ctx)
 
     stream.Append(0, 10.0)
     stream.Append(1, 11.0)
@@ -52,9 +58,13 @@ func main() {
     stream.Append(3, 13.0)
     stream.Append(4, 14.0)
 
-    // Get sum between t=1 and t=3 
-    aggResult := stream.Query("sum", 1, 3, nil)
-    result := aggResult.value
+    // Get sum between t=1 and t=3
+    params := QueryParams{
+        ConfidenceLevel: 0.95,
+        SDMultiplier:    1.0,
+    }
+    aggResult := stream.Query("sum", 1, 3, &params)
+    result := aggResult.value.Sum.Value
     error := aggResult.error
 }
 ```
