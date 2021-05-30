@@ -9,9 +9,10 @@ import (
 )
 
 type Stream struct {
-	streamId int64
-	pipeline *Pipeline
-	manager  *StreamWindowManager
+	streamId   int64
+	pipeline   *Pipeline
+	manager    *StreamWindowManager
+	backendSet bool
 }
 
 func NewStreamWithId(
@@ -21,9 +22,10 @@ func NewStreamWithId(
 	manager := NewStreamWindowManager(id, operatorNames)
 	pipeline := NewPipeline(windowing)
 	return &Stream{
-		streamId: id,
-		pipeline: pipeline,
-		manager:  manager,
+		streamId:   id,
+		pipeline:   pipeline,
+		manager:    manager,
+		backendSet: false,
 	}
 }
 
@@ -36,14 +38,25 @@ func (stream *Stream) SetConfig(config *StoreConfig) *Stream {
 func (stream *Stream) SetBackend(backend storage.Backend, cacheEnabled bool) *Stream {
 	stream.manager.SetBackingStore(NewBackingStore(backend, cacheEnabled))
 	stream.pipeline.SetWindowManager(stream.manager)
+	stream.backendSet = true
 	return stream
 }
 
 func (stream *Stream) Run(ctx context.Context) {
+	if !stream.backendSet {
+		panic("backend not set")
+	}
 	stream.pipeline.Run(ctx)
 }
 
+func (stream *Stream) PrimeUp() {
+	stream.manager.PrimeUp()
+}
+
 func (stream *Stream) Append(timestamp int64, value float64) {
+	if !stream.backendSet {
+		panic("backend not set")
+	}
 	stream.pipeline.Append(timestamp, value)
 }
 
@@ -60,8 +73,10 @@ func (stream *Stream) Query(
 	startTime int64,
 	endTime int64,
 	params *QueryParams) *AggResult {
+	if !stream.backendSet {
+		panic("backend not set")
+	}
 
-	stream.pipeline.Flush(false) // sync writes
 	summaryWindows := stream.pipeline.streamWindowManager.
 		GetSummaryWindowInRange(startTime, endTime)
 	landmarkWindows := stream.pipeline.streamWindowManager.

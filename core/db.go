@@ -17,8 +17,8 @@ type DB struct {
 	streams map[int64]*Stream
 }
 
-func Open(path string) *DB {
-	badgerOptions := badger.DefaultOptions(path)
+func New(path string) *DB {
+	badgerOptions := badger.DefaultOptions(path).WithTruncate(true)
 	badgerDb, err := badger.Open(badgerOptions)
 	badgerBackend := storage.NewBadgerBacked(badgerDb)
 	if err != nil {
@@ -31,6 +31,11 @@ func Open(path string) *DB {
 		streams: make(map[int64]*Stream),
 	}
 
+	return db
+}
+
+func Open(path string) *DB {
+	db := New(path)
 	db.ReadDB()
 	return db
 }
@@ -106,6 +111,8 @@ func (db *DB) ReadDB() {
 		}
 		stream := DeserializeStream(streamBuf)
 		db.streams[streamId] = stream
+		stream.SetBackend(db.backend, true)
+		stream.PrimeUp()
 	}
 }
 
