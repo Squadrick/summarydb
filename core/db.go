@@ -5,6 +5,7 @@ import (
 	"summarydb/protos"
 	"summarydb/storage"
 	"summarydb/window"
+	"sync"
 	"sync/atomic"
 	capnp "zombiezen.com/go/capnproto2"
 )
@@ -15,6 +16,7 @@ type DB struct {
 	backend storage.Backend
 	mds     storage.MetadataStore
 	streams map[int64]*Stream
+	mu      sync.Mutex
 }
 
 func New(path string) *DB {
@@ -29,6 +31,7 @@ func New(path string) *DB {
 		backend: badgerBackend,
 		mds:     storage.NewBadgerMetadataStore(badgerDb),
 		streams: make(map[int64]*Stream),
+		mu:      sync.Mutex{},
 	}
 
 	return db
@@ -41,6 +44,8 @@ func Open(path string) *DB {
 }
 
 func (db *DB) NewStream(operatorNames []string, seq window.LengthsSequence) *Stream {
+	db.mu.Lock()
+	defer db.mu.Unlock()
 	defer atomic.AddInt64(&gStreamIdCounter, 1)
 	streamId := gStreamIdCounter
 	windowing := window.NewGenericWindowing(seq)
@@ -60,9 +65,10 @@ func (db *DB) GetStream(streamId int64) *Stream {
 }
 
 func (db *DB) Close() error {
-	for _, stream := range db.streams {
-		stream.Close()
-	}
+	// TODO: Detect when the stream has already been stopped.
+	//for _, stream := range db.streams {
+	//	stream.Close()
+	//}
 	db.backend.Close()
 	return nil
 }
