@@ -13,6 +13,7 @@ type Stream struct {
 	pipeline   *Pipeline
 	manager    *StreamWindowManager
 	backendSet bool
+	running    bool
 }
 
 func NewStreamWithId(
@@ -26,6 +27,7 @@ func NewStreamWithId(
 		pipeline:   pipeline,
 		manager:    manager,
 		backendSet: false,
+		running:    false,
 	}
 }
 
@@ -46,16 +48,23 @@ func (stream *Stream) Run(ctx context.Context) {
 	if !stream.backendSet {
 		panic("backend not set")
 	}
+	stream.running = true
 	stream.pipeline.Run(ctx)
 }
 
 func (stream *Stream) PrimeUp() {
+	if !stream.backendSet {
+		panic("backend not set")
+	}
 	stream.manager.PrimeUp()
 }
 
 func (stream *Stream) Append(timestamp int64, value float64) {
 	if !stream.backendSet {
 		panic("backend not set")
+	}
+	if !stream.running {
+		panic("stream is not running")
 	}
 	stream.pipeline.Append(timestamp, value)
 }
@@ -75,6 +84,11 @@ func (stream *Stream) Query(
 	params *QueryParams) *AggResult {
 	if !stream.backendSet {
 		panic("backend not set")
+	}
+
+	if stream.running {
+		// sync writes
+		stream.Flush()
 	}
 
 	summaryWindows := stream.pipeline.streamWindowManager.
