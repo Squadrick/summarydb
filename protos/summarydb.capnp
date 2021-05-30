@@ -56,3 +56,13 @@ struct Stream {
 struct DB {
     streamIds @0 :List(Int64);
 }
+
+struct HeapItem {
+    value @0 :Int64;
+    priority @1 :Int32;
+    Index @2 :Int32;
+}
+
+struct Heap {
+    items @0 :List(HeapItem);
+}
