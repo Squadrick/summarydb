@@ -9,11 +9,12 @@ import (
 )
 
 type Stream struct {
-	streamId   int64
-	pipeline   *Pipeline
-	manager    *StreamWindowManager
-	backendSet bool
-	running    bool
+	streamId       int64
+	pipeline       *Pipeline
+	manager        *StreamWindowManager
+	backendSet     bool
+	running        bool
+	landmarkWindow *LandmarkWindow
 }
 
 func NewStreamWithId(
@@ -23,11 +24,12 @@ func NewStreamWithId(
 	manager := NewStreamWindowManager(id, operatorNames)
 	pipeline := NewPipeline(windowing)
 	return &Stream{
-		streamId:   id,
-		pipeline:   pipeline,
-		manager:    manager,
-		backendSet: false,
-		running:    false,
+		streamId:       id,
+		pipeline:       pipeline,
+		manager:        manager,
+		backendSet:     false,
+		running:        false,
+		landmarkWindow: nil,
 	}
 }
 
@@ -66,7 +68,27 @@ func (stream *Stream) Append(timestamp int64, value float64) {
 	if !stream.running {
 		panic("stream is not running")
 	}
-	stream.pipeline.Append(timestamp, value)
+	if stream.landmarkWindow != nil {
+		stream.landmarkWindow.Insert(timestamp, value)
+	} else {
+		stream.pipeline.Append(timestamp, value)
+	}
+}
+
+func (stream *Stream) StartLandmark(timestamp int64) {
+	if stream.landmarkWindow != nil {
+		panic("already appending as landmarks")
+	}
+	stream.landmarkWindow = NewLandmarkWindow(timestamp)
+}
+
+func (stream *Stream) EndLandmark(timestamp int64) {
+	if stream.landmarkWindow == nil {
+		panic("no running landmark")
+	}
+	stream.landmarkWindow.Close(timestamp)
+	stream.manager.PutLandmarkWindow(stream.landmarkWindow)
+	stream.landmarkWindow = nil
 }
 
 func (stream *Stream) Flush() {

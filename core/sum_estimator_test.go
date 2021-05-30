@@ -9,6 +9,10 @@ func getValue(table *DataTable) float64 {
 	return table.Count.Value
 }
 
+func identity(value float64) float64 {
+	return value
+}
+
 func TestGetSumStats_NoLandmarks(t *testing.T) {
 	summaryWindows := make([]*SummaryWindow, 0)
 	landmarkWindows := make([]*LandmarkWindow, 0)
@@ -19,7 +23,7 @@ func TestGetSumStats_NoLandmarks(t *testing.T) {
 		summaryWindows = append(summaryWindows, summaryWindow)
 	}
 
-	bounds, stats := GetSumStats(3, 21, summaryWindows, landmarkWindows, getValue)
+	bounds, stats := GetSumStats(3, 21, summaryWindows, landmarkWindows, getValue, identity)
 
 	assert.Equal(t, bounds.Lower, 3.0)
 	assert.Equal(t, bounds.Upper, 5.0)
@@ -52,7 +56,7 @@ func TestGetSumStats_Landmarks(t *testing.T) {
 
 	landmarkWindows = append(landmarkWindows, landmarkWindow1, landmarkWindow2)
 
-	bounds, stats := GetSumStats(1, 21, summaryWindows, landmarkWindows, getValue)
+	bounds, stats := GetSumStats(1, 21, summaryWindows, landmarkWindows, getValue, identity)
 
 	assert.Equal(t, bounds.Lower, 6.0)
 	assert.Equal(t, bounds.Upper, 8.0)

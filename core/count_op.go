@@ -46,6 +46,9 @@ func (op *CountOp) Query(windows []*SummaryWindow,
 		landmarkWindows,
 		func(table *DataTable) float64 {
 			return table.Count.Value
+		},
+		func(_ float64) float64 {
+			return 1.0
 		})
 
 	ci := stats.ConvertStatsBoundsToCI(

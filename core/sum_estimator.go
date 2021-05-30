@@ -34,7 +34,8 @@ func (wi *WindowInfo) SetLengthAndOverlap(t0 int64, t1 int64) {
 func GetSumStats(t0, t1 int64,
 	summaryWindows []*SummaryWindow,
 	landmarkWindows []*LandmarkWindow,
-	getData func(table *DataTable) float64) (*stats.Bounds, *stats.Stats) {
+	getSummaryData func(*DataTable) float64,
+	getLandmarkData func(float64) float64) (*stats.Bounds, *stats.Stats) {
 	firstWindow := NewWindowInfo()
 	lastWindow := NewWindowInfo()
 	middleWindow := NewWindowInfo()
@@ -43,7 +44,7 @@ func GetSumStats(t0, t1 int64,
 	nDecayedWindows := len(summaryWindows)
 	totalSum := 0.0
 	for i, window := range summaryWindows {
-		value := getData(window.Data)
+		value := getSummaryData(window.Data)
 		if i == 0 {
 			firstWindow.SetValues(window, value)
 		}
@@ -63,22 +64,24 @@ func GetSumStats(t0, t1 int64,
 	lastWindow.SetLengthAndOverlap(t0, t1)
 
 	for _, window := range landmarkWindows {
-		firstWindow.Length -= stats.WindowOverlap(window.TimeStart, window.TimeEnd,
-			firstWindow.Start, firstWindow.End)
-		firstWindow.Overlap -= stats.WindowOverlap(window.TimeStart, window.TimeEnd,
-			t0, firstWindow.End)
-
+		if firstWindow.Start < window.TimeEnd {
+			firstWindow.Length -= stats.WindowOverlap(window.TimeStart, window.TimeEnd,
+				firstWindow.Start, firstWindow.End)
+			firstWindow.Overlap -= stats.WindowOverlap(window.TimeStart, window.TimeEnd,
+				t0, firstWindow.End)
+		}
 		// We don't run the same checks on middle-window since the data overlapping
 		// with landmark windows is contained entirely within [t0, t1].
-
-		lastWindow.Length -= stats.WindowOverlap(window.TimeStart, window.TimeEnd,
-			lastWindow.Start, lastWindow.End)
-		lastWindow.Overlap -= stats.WindowOverlap(window.TimeStart, window.TimeEnd,
-			lastWindow.Start, t1)
+		if lastWindow.End > window.TimeStart {
+			lastWindow.Length -= stats.WindowOverlap(window.TimeStart, window.TimeEnd,
+				lastWindow.Start, lastWindow.End)
+			lastWindow.Overlap -= stats.WindowOverlap(window.TimeStart, window.TimeEnd,
+				lastWindow.Start, t1)
+		}
 
 		for _, landmark := range window.Landmarks {
 			if t0 <= landmark.Timestamp && landmark.Timestamp <= t1 {
-				landmarkWindow.Sum += landmark.Value
+				landmarkWindow.Sum += getLandmarkData(landmark.Value)
 			}
 		}
 	}

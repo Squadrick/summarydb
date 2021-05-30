@@ -47,6 +47,9 @@ func (op *SumOp) Query(windows []*SummaryWindow,
 		landmarkWindows,
 		func(table *DataTable) float64 {
 			return table.Sum.Value
+		},
+		func(value float64) float64 {
+			return value
 		})
 
 	ci := stats.ConvertStatsBoundsToCI(
