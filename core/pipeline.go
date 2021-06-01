@@ -157,3 +157,10 @@ func (p *Pipeline) SetNumBuffers(numBuffers int64) *Pipeline {
 	p.ingester.allocator.SetMaxBuffers(numBuffers)
 	return p
 }
+
+func (p *Pipeline) PrimeUp() {
+	if p.streamWindowManager == nil {
+		panic("cannot prime without window manager")
+	}
+	p.merger.PrimeUp()
+}

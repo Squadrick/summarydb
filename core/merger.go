@@ -73,10 +73,11 @@ func (hm *Merger) SetWindowManager(manager *StreamWindowManager) {
 }
 
 func (hm *Merger) PrimeUp() {
-	if hm.streamWindowManager != nil {
-		hm.mergeCounts = hm.streamWindowManager.GetHeap()
-		hm.index.PopulateFromHeap(hm.mergeCounts)
+	if hm.streamWindowManager == nil {
+		panic("cannot prime without window manager")
 	}
+	hm.mergeCounts = hm.streamWindowManager.GetHeap()
+	hm.index.PopulateFromHeap(hm.mergeCounts)
 }
 
 // Given consecutive windows w0, w1 which together span the count [c0, c1],

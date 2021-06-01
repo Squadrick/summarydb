@@ -59,6 +59,7 @@ func (stream *Stream) PrimeUp() {
 		panic("backend not set")
 	}
 	stream.manager.PrimeUp()
+	stream.pipeline.PrimeUp()
 }
 
 func (stream *Stream) Append(timestamp int64, value float64) {
