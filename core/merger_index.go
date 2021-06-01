@@ -27,8 +27,7 @@ func NewMergerIndex() *MergerIndex {
 
 func (index *MergerIndex) PopulateFromHeap(heap *tree.MinHeap) {
 	for _, entry := range *heap {
-		int64Key := tree.Int64Key(entry.Value)
-		item, ok := index.indexMap.Get(&int64Key)
+		item, ok := index.indexMap.Get(entry.Value)
 		if !ok {
 			continue
 		}
@@ -41,25 +40,23 @@ func (index *MergerIndex) Put(swid int64, cEnd int64) {
 	if swid == InvalidInt64 {
 		return
 	}
-	key := tree.Int64Key(swid)
 	item := &MergerIndexItem{
 		cEnd:     cEnd,
 		heapItem: nil,
 	}
-	index.indexMap.Insert(&key, item)
+	index.indexMap.Insert(swid, item)
 }
 
 func (index *MergerIndex) Remove(swid int64) *MergerIndexItem {
 	if swid == InvalidInt64 {
 		return nil
 	}
-	key := tree.Int64Key(swid)
-	item, ok := index.indexMap.Get(&key)
+	item, ok := index.indexMap.Get(swid)
 	if !ok {
 		return nil
 	}
 	indexItem := item.(*MergerIndexItem)
-	index.indexMap.Delete(&key)
+	index.indexMap.Delete(swid)
 	return indexItem
 }
 
@@ -67,16 +64,14 @@ func (index *MergerIndex) Contains(swid int64) bool {
 	if swid == InvalidInt64 {
 		return false
 	}
-	key := tree.Int64Key(swid)
-	return index.indexMap.Exists(&key)
+	return index.indexMap.Exists(swid)
 }
 
 func (index *MergerIndex) GetCStart(swid int64) int64 {
 	if !index.Contains(swid) || swid == InvalidInt64 {
 		return InvalidInt64
 	}
-	key := tree.Int64Key(swid)
-	_, prevItem := index.indexMap.Lower(&key)
+	_, prevItem := index.indexMap.Lower(swid)
 	if prevItem == nil {
 		return 0
 	}
@@ -88,8 +83,7 @@ func (index *MergerIndex) GetCEnd(swid int64) int64 {
 	if swid == InvalidInt64 {
 		return InvalidInt64
 	}
-	key := tree.Int64Key(swid)
-	item, ok := index.indexMap.Get(&key)
+	item, ok := index.indexMap.Get(swid)
 	if !ok {
 		return InvalidInt64
 	}
@@ -99,26 +93,25 @@ func (index *MergerIndex) GetCEnd(swid int64) int64 {
 
 func (index *MergerIndex) GetPred(swid int64) int64 {
 	if !index.Contains(swid) || swid == InvalidInt64 {
-		return math.MinInt64
+		return InvalidInt64
 	}
-	key := tree.Int64Key(swid)
-	prevKey, _ := index.indexMap.Lower(&key)
-	if prevKey == nil {
-		return math.MinInt64
+	prevKey, _ := index.indexMap.Lower(swid)
+	if prevKey == tree.InvalidRbKey {
+		return InvalidInt64
 	}
-	return int64(*prevKey.(*tree.Int64Key))
+	return prevKey
 }
 
 func (index *MergerIndex) GetSucc(swid int64) int64 {
 	if !index.Contains(swid) || swid == InvalidInt64 {
 		return InvalidInt64
 	}
-	key := tree.Int64Key(swid)
-	succKey, _ := index.indexMap.Higher(&key)
-	if succKey == nil {
+	//key := tree.Int64Key(swid)
+	succKey, _ := index.indexMap.Higher(swid)
+	if succKey == tree.InvalidRbKey {
 		return InvalidInt64
 	}
-	return int64(*succKey.(*tree.Int64Key))
+	return succKey
 }
 
 func (index *MergerIndex) GetLastSWID() int64 {
@@ -127,15 +120,14 @@ func (index *MergerIndex) GetLastSWID() int64 {
 	}
 
 	maxKey, _ := index.indexMap.Max()
-	return int64(*maxKey.(*tree.Int64Key))
+	return maxKey
 }
 
 func (index *MergerIndex) UnsetHeapItem(swid int64) *tree.HeapItem {
 	if swid == InvalidInt64 {
 		return nil
 	}
-	key := tree.Int64Key(swid)
-	item, ok := index.indexMap.Get(&key)
+	item, ok := index.indexMap.Get(swid)
 	if !ok {
 		return nil
 	}
@@ -149,8 +141,7 @@ func (index *MergerIndex) SetHeapItem(swid int64, heapItem *tree.HeapItem) bool 
 	if swid == InvalidInt64 {
 		return false
 	}
-	key := tree.Int64Key(swid)
-	item, ok := index.indexMap.Get(&key)
+	item, ok := index.indexMap.Get(swid)
 	if !ok {
 		return ok
 	}

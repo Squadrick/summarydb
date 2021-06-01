@@ -25,7 +25,10 @@
 
 package tree
 
-import "sync"
+import (
+	"math"
+	"sync"
+)
 
 type KeyComparison int8
 
@@ -38,13 +41,26 @@ const (
 	KeyIsGreater
 )
 
+type RbKey = int64
+
 const (
-	red   = byte(0)
-	black = byte(1)
+	red          = byte(0)
+	black        = byte(1)
+	InvalidRbKey = RbKey(math.MinInt64)
 )
 
-type RbKey interface {
-	ComparedTo(key RbKey) KeyComparison
+// TODO: Replace this with native int64 comparators. I did this
+// since it made migrating from the earlier RbKey interface easier.
+// It is 3AM, and I'm taking the path of minimal effort.
+func Compare(key1, key2 RbKey) KeyComparison {
+	switch {
+	case key1 > key2:
+		return KeyIsGreater
+	case key1 < key2:
+		return KeyIsLess
+	default:
+		return KeysAreEqual
+	}
 }
 
 type rbNode struct {
@@ -107,7 +123,7 @@ func floor(node *rbNode, key RbKey) *rbNode {
 		return node
 	}
 
-	switch key.ComparedTo(node.key) {
+	switch Compare(key, node.key) {
 	case KeysAreEqual:
 		return node
 	case KeyIsLess:
@@ -126,7 +142,7 @@ func lower(node *rbNode, key RbKey) *rbNode {
 		return node
 	}
 
-	switch key.ComparedTo(node.key) {
+	switch Compare(key, node.key) {
 	case KeysAreEqual:
 		fallthrough
 	case KeyIsLess:
@@ -145,7 +161,7 @@ func ceiling(node *rbNode, key RbKey) *rbNode {
 		return nil
 	}
 
-	switch key.ComparedTo(node.key) {
+	switch Compare(key, node.key) {
 	case KeysAreEqual:
 		return node
 	case KeyIsGreater:
@@ -164,7 +180,7 @@ func higher(node *rbNode, key RbKey) *rbNode {
 		return nil
 	}
 
-	switch key.ComparedTo(node.key) {
+	switch Compare(key, node.key) {
 	case KeysAreEqual:
 		fallthrough
 	case KeyIsGreater:
@@ -278,7 +294,7 @@ func (tree *RbTree) Min() (RbKey, interface{}) {
 		result := min(tree.root)
 		return result.key, result.value
 	}
-	return nil, nil
+	return InvalidRbKey, nil
 }
 
 func (tree *RbTree) Max() (RbKey, interface{}) {
@@ -288,68 +304,68 @@ func (tree *RbTree) Max() (RbKey, interface{}) {
 		result := max(tree.root)
 		return result.key, result.value
 	}
-	return nil, nil
+	return InvalidRbKey, nil
 }
 
 // Floor returns the largest key in the tree less than or equal to key
 func (tree *RbTree) Floor(key RbKey) (RbKey, interface{}) {
 	tree.mutex.RLock()
 	defer tree.mutex.RUnlock()
-	if key != nil && tree.root != nil {
+	if key != InvalidRbKey && tree.root != nil {
 		node := floor(tree.root, key)
 		if node == nil {
-			return nil, nil
+			return InvalidRbKey, nil
 		}
 		return node.key, node.value
 	}
-	return nil, nil
+	return InvalidRbKey, nil
 }
 
 // Ceiling returns the smallest key in the tree greater than or equal to key
 func (tree *RbTree) Ceiling(key RbKey) (RbKey, interface{}) {
 	tree.mutex.RLock()
 	defer tree.mutex.RUnlock()
-	if key != nil && tree.root != nil {
+	if key != InvalidRbKey && tree.root != nil {
 		node := ceiling(tree.root, key)
 		if node == nil {
-			return nil, nil
+			return InvalidRbKey, nil
 		}
 		return node.key, node.value
 	}
-	return nil, nil
+	return InvalidRbKey, nil
 }
 
 // Higher returns the smallest key in the tree strictly greater than key
 func (tree *RbTree) Higher(key RbKey) (RbKey, interface{}) {
 	tree.mutex.RLock()
 	defer tree.mutex.RUnlock()
-	if key != nil && tree.root != nil {
+	if key != InvalidRbKey && tree.root != nil {
 		node := higher(tree.root, key)
 		if node == nil {
-			return nil, nil
+			return InvalidRbKey, nil
 		}
 		return node.key, node.value
 	}
-	return nil, nil
+	return InvalidRbKey, nil
 }
 
 // Lower returns the largest key in the tree strictly greater than key
 func (tree *RbTree) Lower(key RbKey) (RbKey, interface{}) {
 	tree.mutex.RLock()
 	defer tree.mutex.RUnlock()
-	if key != nil && tree.root != nil {
+	if key != InvalidRbKey && tree.root != nil {
 		node := lower(tree.root, key)
 		if node == nil {
-			return nil, nil
+			return InvalidRbKey, nil
 		}
 		return node.key, node.value
 	}
-	return nil, nil
+	return InvalidRbKey, nil
 }
 
 func (tree *RbTree) find(key RbKey) *rbNode {
 	for node := tree.root; node != nil; {
-		switch key.ComparedTo(node.key) {
+		switch Compare(key, node.key) {
 		case KeyIsLess:
 			node = node.left
 		case KeyIsGreater:
@@ -373,7 +389,7 @@ func (tree *RbTree) update(key RbKey, value interface{}) bool {
 func (tree *RbTree) Get(key RbKey) (interface{}, bool) {
 	tree.mutex.RLock()
 	defer tree.mutex.RUnlock()
-	if key != nil && tree.root != nil {
+	if key != InvalidRbKey && tree.root != nil {
 		node := tree.find(key)
 		if node != nil {
 			return node.value, true
@@ -394,7 +410,7 @@ func (tree *RbTree) insertNode(node *rbNode, key RbKey, value interface{}) *rbNo
 		return newRbNode(key, value)
 	}
 
-	switch key.ComparedTo(node.key) {
+	switch Compare(key, node.key) {
 	case KeyIsLess:
 		node.left = tree.insertNode(node.left, key, value)
 	case KeyIsGreater:
@@ -410,7 +426,7 @@ func (tree *RbTree) Insert(key RbKey, value interface{}) {
 	tree.mutex.Lock()
 	defer tree.mutex.Unlock()
 
-	if key != nil {
+	if key != InvalidRbKey {
 		// First check if the key exists already, and update it if found.
 		updated := tree.update(key, value)
 		if !updated {
@@ -428,7 +444,7 @@ func (tree *RbTree) deleteNode(node *rbNode, key RbKey) *rbNode {
 		return nil
 	}
 
-	cmp := key.ComparedTo(node.key)
+	cmp := Compare(key, node.key)
 	if cmp == KeyIsLess {
 		if isBlack(node.left) && !isRed(node.left.left) {
 			node = moveRedLeft(node)
@@ -443,7 +459,7 @@ func (tree *RbTree) deleteNode(node *rbNode, key RbKey) *rbNode {
 			node = moveRedRight(node)
 		}
 
-		if key.ComparedTo(node.key) != KeysAreEqual {
+		if Compare(key, node.key) != KeysAreEqual {
 			node.right = tree.deleteNode(node.right, key)
 		} else {
 			if node.right == nil {
@@ -562,21 +578,4 @@ func (tree *RbTree) GetDenseMap() *OrderedMap {
 		return false
 	})
 	return denseMap
-}
-
-// TODO(squadrick): Replace RbTree API with int64 instead of RbKey interface
-type Int64Key int64
-
-// ComparedTo compares the given RbKey with its self
-func (ikey *Int64Key) ComparedTo(key RbKey) KeyComparison {
-	key1 := int64(*ikey)
-	key2 := int64(*key.(*Int64Key))
-	switch {
-	case key1 > key2:
-		return KeyIsGreater
-	case key1 < key2:
-		return KeyIsLess
-	default:
-		return KeysAreEqual
-	}
 }

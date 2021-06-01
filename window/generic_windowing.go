@@ -46,11 +46,9 @@ func (gwin *GenericWindowing) GetSeq() LengthsSequence {
 func (gwin *GenericWindowing) addWindow(length int64) {
 	gwin.lastWindowStart += gwin.lastWindowLength
 	if length > gwin.lastWindowLength {
-		lengthKey := tree.Int64Key(length)
-		gwin.firstWindowOfLength.Insert(&lengthKey, gwin.lastWindowStart)
+		gwin.firstWindowOfLength.Insert(length, gwin.lastWindowStart)
 	}
-	lastWindowStartKey := tree.Int64Key(gwin.lastWindowStart)
-	gwin.windowStartMarkersSet.Insert(&lastWindowStartKey, gwin.lastWindowStart)
+	gwin.windowStartMarkersSet.Insert(gwin.lastWindowStart, gwin.lastWindowStart)
 	gwin.lastWindowLength = length
 }
 
@@ -90,8 +88,7 @@ func (gwin *GenericWindowing) GetFirstContainingTime(Tl, Tr, T int64) (int64, bo
 		return 0, false
 	}
 
-	lengthKey := tree.Int64Key(length)
-	_, firstMarker := gwin.firstWindowOfLength.Ceiling(&lengthKey)
+	_, firstMarker := gwin.firstWindowOfLength.Ceiling(length)
 	firstMarkerValue, ok := firstMarker.(int64)
 	if !ok {
 		return 0, false
@@ -105,11 +102,8 @@ func (gwin *GenericWindowing) GetFirstContainingTime(Tl, Tr, T int64) (int64, bo
 	// We've already hit the target window length, so [l, r] is either
 	// already in the same window or will be once we move into the next window
 	gwin.addWindowsPastMarker(l)
-	lKey := tree.Int64Key(l)
-	currWindowLKey, _ := gwin.windowStartMarkersSet.Floor(&lKey)
-	currWindowRKey, _ := gwin.windowStartMarkersSet.Higher(&lKey)
-	currWindowL := int64(*currWindowLKey.(*tree.Int64Key))
-	currWindowR := int64(*currWindowRKey.(*tree.Int64Key))
+	currWindowL, _ := gwin.windowStartMarkersSet.Floor(l)
+	currWindowR, _ := gwin.windowStartMarkersSet.Higher(l)
 
 	if r <= currWindowR {
 		// already in the same window

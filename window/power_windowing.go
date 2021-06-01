@@ -80,10 +80,8 @@ func (pwin *PowerWindowing) addOne() {
 	pwin.lastLength = pwin.S * int64Pow(pwin.k+1, pwin.q)
 	pwin.lastMarker += pwin.R * int64Pow(pwin.k, pwin.p+pwin.q-1)
 	pwin.k++
-	lastLengthKey := tree.Int64Key(pwin.lastLength)
-	lastMarkerKey := tree.Int64Key(pwin.lastMarker)
-	pwin.lengthToFirstMarker.Insert(&lastLengthKey, pwin.lastMarker)
-	pwin.firstMarkerToLength.Insert(&lastMarkerKey, pwin.lastLength)
+	pwin.lengthToFirstMarker.Insert(pwin.lastLength, pwin.lastMarker)
+	pwin.firstMarkerToLength.Insert(pwin.lastMarker, pwin.lastLength)
 }
 
 func (pwin *PowerWindowing) GetSeq() LengthsSequence {
@@ -119,18 +117,14 @@ func (pwin *PowerWindowing) GetFirstContainingTime(Tl, Tr, T int64) (int64, bool
 	}
 
 	pwin.addUntilLength(length)
-	lengthKey := tree.Int64Key(length)
-	lengthMarkerKey, _ := pwin.lengthToFirstMarker.Ceiling(&lengthKey)
-	lengthMarker := int64(*lengthMarkerKey.(*tree.Int64Key))
+	lengthMarker, _ := pwin.lengthToFirstMarker.Ceiling(length)
 	if lengthMarker >= l {
 		return T + lengthMarker - l, true
 	}
 	// We have already hit the target length, so [l, r] is either
 	// already in the same window or will be once we move into next window
 	pwin.addPastMarker(l)
-	lKey := tree.Int64Key(l)
-	targetLengthKey, lengthMarkerValue := pwin.firstMarkerToLength.Floor(&lKey)
-	targetLength := int64(*targetLengthKey.(*tree.Int64Key))
+	targetLength, lengthMarkerValue := pwin.firstMarkerToLength.Floor(l)
 	lengthMarker = lengthMarkerValue.(int64)
 
 	// [Wl, Wr] is the window containing l

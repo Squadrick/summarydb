@@ -27,13 +27,11 @@ func NewQueryIndex() *QueryIndex {
 }
 
 func (index *QueryIndex) Add(tStart int64) {
-	tStartKey := tree.Int64Key(tStart)
-	index.tStarts.Insert(&tStartKey, tStart)
+	index.tStarts.Insert(tStart, tStart)
 }
 
 func (index *QueryIndex) Remove(tStart int64) {
-	tStartKey := tree.Int64Key(tStart)
-	index.tStarts.Delete(&tStartKey)
+	index.tStarts.Delete(tStart)
 }
 
 func (index *QueryIndex) GetNumberWindows() int {
@@ -47,14 +45,12 @@ func (index *QueryIndex) GetOverlappingWindowIDs(t0 int64, t1 int64) []int64 {
 	if index.tStarts.IsEmpty() {
 		return make([]int64, 0)
 	}
-	t0Key := tree.Int64Key(t0)
-	t1Key := tree.Int64Key(t1)
-	_, l := index.tStarts.Floor(&t0Key)
+	_, l := index.tStarts.Floor(t0)
 	if l == nil {
 		_, l = index.tStarts.Min()
 	}
 
-	_, r := index.tStarts.Ceiling(&t1Key)
+	_, r := index.tStarts.Ceiling(t1)
 	if r == nil {
 		_, r = index.tStarts.Max()
 	}
