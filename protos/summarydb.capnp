@@ -34,7 +34,7 @@ struct ProtoLandmarkWindow {
 }
 
 struct ExpWindow {
-    base @1 :Float64;
+    base @0 :Float64;
 }
 
 struct PowerWindow {
@@ -60,9 +60,18 @@ struct DB {
 struct HeapItem {
     value @0 :Int64;
     priority @1 :Int32;
-    Index @2 :Int32;
+    index @2 :Int32;
 }
 
 struct Heap {
     items @0 :List(HeapItem);
+}
+
+struct MergerIndexItem {
+    swid @0 :Int64;
+    cEnd @1 :Int64;
+}
+
+struct MergerIndex {
+    items @0 :List(MergerIndexItem);
 }

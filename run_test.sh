@@ -1,2 +1,2 @@
-capnp compile -I$GOPATH/src/zombiezen.com/go/capnproto2/std -ogo protos/summarydb.capnp
+capnp compile -I$GOPATH/src/capnproto.org/go/capnp/std -ogo protos/summarydb.capnp
 go test -v ./...

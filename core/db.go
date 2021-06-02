@@ -1,13 +1,13 @@
 package core
 
 import (
+	capnp "capnproto.org/go/capnp/v3"
 	"github.com/dgraph-io/badger/v2"
 	"summarydb/protos"
 	"summarydb/storage"
 	"summarydb/window"
 	"sync"
 	"sync/atomic"
-	capnp "zombiezen.com/go/capnproto2"
 )
 
 var gStreamIdCounter int64 = 0

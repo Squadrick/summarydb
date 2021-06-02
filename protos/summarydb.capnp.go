@@ -3,11 +3,11 @@
 package protos
 
 import (
+	capnp "capnproto.org/go/capnp/v3"
+	text "capnproto.org/go/capnp/v3/encoding/text"
+	schemas "capnproto.org/go/capnp/v3/schemas"
 	math "math"
 	strconv "strconv"
-	capnp "zombiezen.com/go/capnproto2"
-	text "zombiezen.com/go/capnproto2/encoding/text"
-	schemas "zombiezen.com/go/capnproto2/schemas"
 )
 
 type OpType uint16
@@ -101,7 +101,7 @@ func NewRootDataTable(s *capnp.Segment) (DataTable, error) {
 }
 
 func ReadRootDataTable(msg *capnp.Message) (DataTable, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return DataTable{root.Struct()}, err
 }
 
@@ -152,11 +152,11 @@ func (s DataTable_List) String() string {
 	return str
 }
 
-// DataTable_Promise is a wrapper for a DataTable promised by a client call.
-type DataTable_Promise struct{ *capnp.Pipeline }
+// DataTable_Future is a wrapper for a DataTable promised by a client call.
+type DataTable_Future struct{ *capnp.Future }
 
-func (p DataTable_Promise) Struct() (DataTable, error) {
-	s, err := p.Pipeline.Struct()
+func (p DataTable_Future) Struct() (DataTable, error) {
+	s, err := p.Future.Struct()
 	return DataTable{s}, err
 }
 
@@ -176,7 +176,7 @@ func NewRootProtoSummaryWindow(s *capnp.Segment) (ProtoSummaryWindow, error) {
 }
 
 func ReadRootProtoSummaryWindow(msg *capnp.Message) (ProtoSummaryWindow, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return ProtoSummaryWindow{root.Struct()}, err
 }
 
@@ -223,8 +223,7 @@ func (s ProtoSummaryWindow) OpData() (DataTable, error) {
 }
 
 func (s ProtoSummaryWindow) HasOpData() bool {
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s ProtoSummaryWindow) SetOpData(v DataTable) error {
@@ -264,16 +263,16 @@ func (s ProtoSummaryWindow_List) String() string {
 	return str
 }
 
-// ProtoSummaryWindow_Promise is a wrapper for a ProtoSummaryWindow promised by a client call.
-type ProtoSummaryWindow_Promise struct{ *capnp.Pipeline }
+// ProtoSummaryWindow_Future is a wrapper for a ProtoSummaryWindow promised by a client call.
+type ProtoSummaryWindow_Future struct{ *capnp.Future }
 
-func (p ProtoSummaryWindow_Promise) Struct() (ProtoSummaryWindow, error) {
-	s, err := p.Pipeline.Struct()
+func (p ProtoSummaryWindow_Future) Struct() (ProtoSummaryWindow, error) {
+	s, err := p.Future.Struct()
 	return ProtoSummaryWindow{s}, err
 }
 
-func (p ProtoSummaryWindow_Promise) OpData() DataTable_Promise {
-	return DataTable_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+func (p ProtoSummaryWindow_Future) OpData() DataTable_Future {
+	return DataTable_Future{Future: p.Future.Field(0, nil)}
 }
 
 type ProtoLandmarkWindow struct{ capnp.Struct }
@@ -292,7 +291,7 @@ func NewRootProtoLandmarkWindow(s *capnp.Segment) (ProtoLandmarkWindow, error) {
 }
 
 func ReadRootProtoLandmarkWindow(msg *capnp.Message) (ProtoLandmarkWindow, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return ProtoLandmarkWindow{root.Struct()}, err
 }
 
@@ -323,8 +322,7 @@ func (s ProtoLandmarkWindow) Timestamps() (capnp.Int64List, error) {
 }
 
 func (s ProtoLandmarkWindow) HasTimestamps() bool {
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s ProtoLandmarkWindow) SetTimestamps(v capnp.Int64List) error {
@@ -348,8 +346,7 @@ func (s ProtoLandmarkWindow) Values() (capnp.Float64List, error) {
 }
 
 func (s ProtoLandmarkWindow) HasValues() bool {
-	p, err := s.Struct.Ptr(1)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(1)
 }
 
 func (s ProtoLandmarkWindow) SetValues(v capnp.Float64List) error {
@@ -389,11 +386,11 @@ func (s ProtoLandmarkWindow_List) String() string {
 	return str
 }
 
-// ProtoLandmarkWindow_Promise is a wrapper for a ProtoLandmarkWindow promised by a client call.
-type ProtoLandmarkWindow_Promise struct{ *capnp.Pipeline }
+// ProtoLandmarkWindow_Future is a wrapper for a ProtoLandmarkWindow promised by a client call.
+type ProtoLandmarkWindow_Future struct{ *capnp.Future }
 
-func (p ProtoLandmarkWindow_Promise) Struct() (ProtoLandmarkWindow, error) {
-	s, err := p.Pipeline.Struct()
+func (p ProtoLandmarkWindow_Future) Struct() (ProtoLandmarkWindow, error) {
+	s, err := p.Future.Struct()
 	return ProtoLandmarkWindow{s}, err
 }
 
@@ -403,17 +400,17 @@ type ExpWindow struct{ capnp.Struct }
 const ExpWindow_TypeID = 0xccb7f73c66a69be1
 
 func NewExpWindow(s *capnp.Segment) (ExpWindow, error) {
-	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 0})
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
 	return ExpWindow{st}, err
 }
 
 func NewRootExpWindow(s *capnp.Segment) (ExpWindow, error) {
-	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 0})
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
 	return ExpWindow{st}, err
 }
 
 func ReadRootExpWindow(msg *capnp.Message) (ExpWindow, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return ExpWindow{root.Struct()}, err
 }
 
@@ -422,20 +419,12 @@ func (s ExpWindow) String() string {
 	return str
 }
 
-func (s ExpWindow) Next() float64 {
+func (s ExpWindow) Base() float64 {
 	return math.Float64frombits(s.Struct.Uint64(0))
 }
 
-func (s ExpWindow) SetNext(v float64) {
-	s.Struct.SetUint64(0, math.Float64bits(v))
-}
-
-func (s ExpWindow) Base() float64 {
-	return math.Float64frombits(s.Struct.Uint64(8))
-}
-
 func (s ExpWindow) SetBase(v float64) {
-	s.Struct.SetUint64(8, math.Float64bits(v))
+	s.Struct.SetUint64(0, math.Float64bits(v))
 }
 
 // ExpWindow_List is a list of ExpWindow.
@@ -443,7 +432,7 @@ type ExpWindow_List struct{ capnp.List }
 
 // NewExpWindow creates a new list of ExpWindow.
 func NewExpWindow_List(s *capnp.Segment, sz int32) (ExpWindow_List, error) {
-	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 16, PointerCount: 0}, sz)
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
 	return ExpWindow_List{l}, err
 }
 
@@ -456,11 +445,11 @@ func (s ExpWindow_List) String() string {
 	return str
 }
 
-// ExpWindow_Promise is a wrapper for a ExpWindow promised by a client call.
-type ExpWindow_Promise struct{ *capnp.Pipeline }
+// ExpWindow_Future is a wrapper for a ExpWindow promised by a client call.
+type ExpWindow_Future struct{ *capnp.Future }
 
-func (p ExpWindow_Promise) Struct() (ExpWindow, error) {
-	s, err := p.Pipeline.Struct()
+func (p ExpWindow_Future) Struct() (ExpWindow, error) {
+	s, err := p.Future.Struct()
 	return ExpWindow{s}, err
 }
 
@@ -480,7 +469,7 @@ func NewRootPowerWindow(s *capnp.Segment) (PowerWindow, error) {
 }
 
 func ReadRootPowerWindow(msg *capnp.Message) (PowerWindow, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return PowerWindow{root.Struct()}, err
 }
 
@@ -539,11 +528,11 @@ func (s PowerWindow_List) String() string {
 	return str
 }
 
-// PowerWindow_Promise is a wrapper for a PowerWindow promised by a client call.
-type PowerWindow_Promise struct{ *capnp.Pipeline }
+// PowerWindow_Future is a wrapper for a PowerWindow promised by a client call.
+type PowerWindow_Future struct{ *capnp.Future }
 
-func (p PowerWindow_Promise) Struct() (PowerWindow, error) {
-	s, err := p.Pipeline.Struct()
+func (p PowerWindow_Future) Struct() (PowerWindow, error) {
+	s, err := p.Future.Struct()
 	return PowerWindow{s}, err
 }
 
@@ -582,7 +571,7 @@ func NewRootStream(s *capnp.Segment) (Stream, error) {
 }
 
 func ReadRootStream(msg *capnp.Message) (Stream, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return Stream{root.Struct()}, err
 }
 
@@ -605,8 +594,7 @@ func (s Stream) Operators() (OpType_List, error) {
 }
 
 func (s Stream) HasOperators() bool {
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s Stream) SetOperators(v OpType_List) error {
@@ -641,8 +629,7 @@ func (s Stream_window) HasExp() bool {
 	if s.Struct.Uint16(8) != 0 {
 		return false
 	}
-	p, err := s.Struct.Ptr(1)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(1)
 }
 
 func (s Stream_window) SetExp(v ExpWindow) error {
@@ -674,8 +661,7 @@ func (s Stream_window) HasPower() bool {
 	if s.Struct.Uint16(8) != 1 {
 		return false
 	}
-	p, err := s.Struct.Ptr(1)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(1)
 }
 
 func (s Stream_window) SetPower(v PowerWindow) error {
@@ -713,30 +699,30 @@ func (s Stream_List) String() string {
 	return str
 }
 
-// Stream_Promise is a wrapper for a Stream promised by a client call.
-type Stream_Promise struct{ *capnp.Pipeline }
+// Stream_Future is a wrapper for a Stream promised by a client call.
+type Stream_Future struct{ *capnp.Future }
 
-func (p Stream_Promise) Struct() (Stream, error) {
-	s, err := p.Pipeline.Struct()
+func (p Stream_Future) Struct() (Stream, error) {
+	s, err := p.Future.Struct()
 	return Stream{s}, err
 }
 
-func (p Stream_Promise) Window() Stream_window_Promise { return Stream_window_Promise{p.Pipeline} }
+func (p Stream_Future) Window() Stream_window_Future { return Stream_window_Future{p.Future} }
 
-// Stream_window_Promise is a wrapper for a Stream_window promised by a client call.
-type Stream_window_Promise struct{ *capnp.Pipeline }
+// Stream_window_Future is a wrapper for a Stream_window promised by a client call.
+type Stream_window_Future struct{ *capnp.Future }
 
-func (p Stream_window_Promise) Struct() (Stream_window, error) {
-	s, err := p.Pipeline.Struct()
+func (p Stream_window_Future) Struct() (Stream_window, error) {
+	s, err := p.Future.Struct()
 	return Stream_window{s}, err
 }
 
-func (p Stream_window_Promise) Exp() ExpWindow_Promise {
-	return ExpWindow_Promise{Pipeline: p.Pipeline.GetPipeline(1)}
+func (p Stream_window_Future) Exp() ExpWindow_Future {
+	return ExpWindow_Future{Future: p.Future.Field(1, nil)}
 }
 
-func (p Stream_window_Promise) Power() PowerWindow_Promise {
-	return PowerWindow_Promise{Pipeline: p.Pipeline.GetPipeline(1)}
+func (p Stream_window_Future) Power() PowerWindow_Future {
+	return PowerWindow_Future{Future: p.Future.Field(1, nil)}
 }
 
 type DB struct{ capnp.Struct }
@@ -755,7 +741,7 @@ func NewRootDB(s *capnp.Segment) (DB, error) {
 }
 
 func ReadRootDB(msg *capnp.Message) (DB, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return DB{root.Struct()}, err
 }
 
@@ -770,8 +756,7 @@ func (s DB) StreamIds() (capnp.Int64List, error) {
 }
 
 func (s DB) HasStreamIds() bool {
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s DB) SetStreamIds(v capnp.Int64List) error {
@@ -807,81 +792,393 @@ func (s DB_List) String() string {
 	return str
 }
 
-// DB_Promise is a wrapper for a DB promised by a client call.
-type DB_Promise struct{ *capnp.Pipeline }
+// DB_Future is a wrapper for a DB promised by a client call.
+type DB_Future struct{ *capnp.Future }
 
-func (p DB_Promise) Struct() (DB, error) {
-	s, err := p.Pipeline.Struct()
+func (p DB_Future) Struct() (DB, error) {
+	s, err := p.Future.Struct()
 	return DB{s}, err
 }
 
-const schema_91f0805429cab961 = "x\xda|T]h\x1ce\x14\xbd\xe7\xfbf\xb2\xd1\xa4" +
-	"n\xc6Y\x88\xae?\x8b\x12\xa1\x89\xb6\xa6\x8d}0\x88" +
-	"i%\x01+\x0d\xcd\x97l\x11J\x0b\xfd\xb2;\xa5\x8b" +
-	";;\xd3\x9dYw#V\x1a\xa8\xa1\x95\x0a\x06\x04\x05" +
-	"_|\xf2I\x10\x9fDD\xe2\xcf\x93?E\xf1\xb5\x0a" +
-	"V(>\x09\x1aP\x11\xa9#wv3\xb3\x8cY\x9f" +
-	"\xf6\xce\xe1\xec\xbdg\xce=w\xa6\xa7\xc5aq\xc0," +
-	"I\"5a\x0eE\xc5CW\xcb\x0folm\x905" +
-	".\"\xfd\xe1\x97\x93\xe5\x8b\xbfn\x12\xc1na\xdb^" +
-	"G\x8e\xc8\xbe\x807\x08\xd1\xd0\xe6\x8d[\x1b\xef\x0e\xbf" +
-	"M\xd68R\xa2\x193>\xc5w\xf6\xb5\xb8\xfa\x02s" +
-	"\x84\xe8L\xfd\xfb\x97~\\\xa8|Bj\x1cFJ6" +
-	"rD3\xb7P\x84\xbdG0\xf96\xf13!\xba\xe7" +
-	"\xa3W>\x9b\xb8\xbe\xfd9\xa9\xfb!\xa2\xf7\xaf\xbfp" +
-	"\xea\xaf\xf5\xd67tB\xe4 `\xcc\xfc \xa6@\xb0" +
-	"o\x8a6!Z\x9b\xdezh\xf6\xf8\xe8W\xdcXf" +
-	"\x1a\x1f\x91\xb7\xc3V\x92\x1b/\xca\xf7\x08\xd1\x8d\xb7\xde" +
-	"9\xfb\xc4\x9f\x1f|\xcdd\x91!\xdfd\xf2\xef1\xf9" +
-	"7\xc9\x9d\xf3?m=\xf3\xc8\xe2\x1f\xd72d\x93\x85" +
-	"\xce,\x1a'ak\xfe\xa3}\xda`\xcd\x89\xca]\xd8" +
-	"\xf6\x09s\xdb\xd6fL6Y\xc7\xdf\x1f\x9f\xbe\xb2y" +
-	"\xe8\xc9o3n\xc4\xd6\xcd\xfcb.\xc3\xc6P\xec\x8c" +
-	"Y\x02!\xf2\x9b^\xe8\x05\x8f\x06\xa2\xe5\xba\xba\xb9V" +
-	"]\xdd_\xd1~\xc3\x9f=^\xf2\xcbk\xbe\xb3\x04\xa8" +
-	"\xbb \x88\xac#\x07\x89\x00\xeb\xf1\x07\x89 \xac\x03\xfc" +
-	"$\xadI~2\xac\x07\xf8\xc7\xb4\xee\x9e\"*U\xbc" +
-	"V#\xcc\x05-\xb7\xb4Z\xf7<7Wq\x83\x9c\xab" +
-	";\xf9\xb3M\xe7\xfc\xc0i\xf3x\x8a'\x19\xd2 2" +
-	"@d\xedY&R\xa3\x12j\xaf@\x14\x84MG\xbb" +
-	"G\xab\x84\x00w\x10\x96$`\x92\xe02i(3\x0d" +
-	"\x97\xbc\xb6\xd3|\xb6\xd6\xa8J\xaf\xcd\x9d\xc7\x92\xce\xfa" +
-	"N\"uJB\x9d\x13\xb0\x80\x02\x18t\x18<#\xa1" +
-	"\xea\x02\x96\x10\x85\xf8\x8dk\x0cV%\x94/`IY" +
-	"\x80$\xb2\\\x06\xcfI\xa8P\x00~\xac\xc3$\xe0|" +
-	"R5\x93*\xd8\xa9\x06\xaa\\\x89_l\x7f\xbb\x96o" +
-	"T\xbd\xb6\x1a\x96\xc6\xbdQ\x84\xeet\xb6VMH\xa8" +
-	"i\x81\xfb\xf0\x0f\xc3<\x7f\xdfA\"\xb5WB=&" +
-	"\x90s:>\xc6\xd2\xe4\x110F(\xf9\xfc\xee\x18K" +
-	"\xef\xa2\x8b\x0fT1\xafC]\xd6\xabu\x87\x88\xad\x1a" +
-	"M\xacZ\xe0Y\x87%\xd4\xb1>\xab\x8e\xb2\xaey\x09" +
-	"\xb5\xd4g\xd5\"\x83OK\xa8\xb2@7\x01\x18!\x81" +
-	"\x11\x02\xef>\xa9\x83\x96\xbbS\x0fT\xb3\xd0\xf1yo" +
-	"^\xbb\xabf8Q39\x95\x1a\x92\xa8\xd97\x95\xda" +
-	"\x91o8\x9ddn~U\x07\xce\x7f\x86\x19\xd9\x980" +
-	"~L7\xaa\xaen>\xb7{\\\x8a\xbb\xc5\xa5\x98\xc6" +
-	"\x05;i9\xd9\x0b\xc6%NKo[\xeb\xb3D\xea" +
-	"E\x09\xf5\xa6\x80\x0c\x93@\xc8\xd0I\xb2\x11\xd6\\'" +
-	"\x08\xb5K\xd2\xcf\xa6{\xeey]o9\x09:\x92\xc9" +
-	"|\xf6\x88VJq\x9c2;,\xa6;LV\xb8\xdc" +
-	"\xdbV\x95\xe5\xa3\xef\xa3h\xe9Y\x12\xb2VM\xd4y" +
-	"\xbe\xd3\xd4\xa1\xd7\xec;\xbd|\xfa\x15'\xc42\xdb\xf1" +
-	"\xbe\xfe\xdf\xe4\x95.\x18\xaf\x16\xb1\xc7\x85D\xe3\x05\xd6" +
-	"\xd8\xe9Y\xb7#r\xbd\xd8\xb3\xeer_\xce^f\xf0" +
-	"\xa2\x84\xba\xdaw\x92W\x18\xbc$\xa1^\x13\x80Q\x80" +
-	"Ad\xbd\xca\xc6_\x96P\xaf\x0f2^VR\xb4\x92" +
-	"\xa0s\x9e\xcf\xe7\x80\xb1\xf4\xe3\xdf\xbd\x9e\x7f\x03\x00\x00" +
-	"\xff\xff\xee]\x90\xe2"
+type HeapItem struct{ capnp.Struct }
+
+// HeapItem_TypeID is the unique identifier for the type HeapItem.
+const HeapItem_TypeID = 0xb37ab58ad73179ce
+
+func NewHeapItem(s *capnp.Segment) (HeapItem, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 0})
+	return HeapItem{st}, err
+}
+
+func NewRootHeapItem(s *capnp.Segment) (HeapItem, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 0})
+	return HeapItem{st}, err
+}
+
+func ReadRootHeapItem(msg *capnp.Message) (HeapItem, error) {
+	root, err := msg.Root()
+	return HeapItem{root.Struct()}, err
+}
+
+func (s HeapItem) String() string {
+	str, _ := text.Marshal(0xb37ab58ad73179ce, s.Struct)
+	return str
+}
+
+func (s HeapItem) Value() int64 {
+	return int64(s.Struct.Uint64(0))
+}
+
+func (s HeapItem) SetValue(v int64) {
+	s.Struct.SetUint64(0, uint64(v))
+}
+
+func (s HeapItem) Priority() int32 {
+	return int32(s.Struct.Uint32(8))
+}
+
+func (s HeapItem) SetPriority(v int32) {
+	s.Struct.SetUint32(8, uint32(v))
+}
+
+func (s HeapItem) Index() int32 {
+	return int32(s.Struct.Uint32(12))
+}
+
+func (s HeapItem) SetIndex(v int32) {
+	s.Struct.SetUint32(12, uint32(v))
+}
+
+// HeapItem_List is a list of HeapItem.
+type HeapItem_List struct{ capnp.List }
+
+// NewHeapItem creates a new list of HeapItem.
+func NewHeapItem_List(s *capnp.Segment, sz int32) (HeapItem_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 16, PointerCount: 0}, sz)
+	return HeapItem_List{l}, err
+}
+
+func (s HeapItem_List) At(i int) HeapItem { return HeapItem{s.List.Struct(i)} }
+
+func (s HeapItem_List) Set(i int, v HeapItem) error { return s.List.SetStruct(i, v.Struct) }
+
+func (s HeapItem_List) String() string {
+	str, _ := text.MarshalList(0xb37ab58ad73179ce, s.List)
+	return str
+}
+
+// HeapItem_Future is a wrapper for a HeapItem promised by a client call.
+type HeapItem_Future struct{ *capnp.Future }
+
+func (p HeapItem_Future) Struct() (HeapItem, error) {
+	s, err := p.Future.Struct()
+	return HeapItem{s}, err
+}
+
+type Heap struct{ capnp.Struct }
+
+// Heap_TypeID is the unique identifier for the type Heap.
+const Heap_TypeID = 0xf47bb59dbae61204
+
+func NewHeap(s *capnp.Segment) (Heap, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
+	return Heap{st}, err
+}
+
+func NewRootHeap(s *capnp.Segment) (Heap, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
+	return Heap{st}, err
+}
+
+func ReadRootHeap(msg *capnp.Message) (Heap, error) {
+	root, err := msg.Root()
+	return Heap{root.Struct()}, err
+}
+
+func (s Heap) String() string {
+	str, _ := text.Marshal(0xf47bb59dbae61204, s.Struct)
+	return str
+}
+
+func (s Heap) Items() (HeapItem_List, error) {
+	p, err := s.Struct.Ptr(0)
+	return HeapItem_List{List: p.List()}, err
+}
+
+func (s Heap) HasItems() bool {
+	return s.Struct.HasPtr(0)
+}
+
+func (s Heap) SetItems(v HeapItem_List) error {
+	return s.Struct.SetPtr(0, v.List.ToPtr())
+}
+
+// NewItems sets the items field to a newly
+// allocated HeapItem_List, preferring placement in s's segment.
+func (s Heap) NewItems(n int32) (HeapItem_List, error) {
+	l, err := NewHeapItem_List(s.Struct.Segment(), n)
+	if err != nil {
+		return HeapItem_List{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
+}
+
+// Heap_List is a list of Heap.
+type Heap_List struct{ capnp.List }
+
+// NewHeap creates a new list of Heap.
+func NewHeap_List(s *capnp.Segment, sz int32) (Heap_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
+	return Heap_List{l}, err
+}
+
+func (s Heap_List) At(i int) Heap { return Heap{s.List.Struct(i)} }
+
+func (s Heap_List) Set(i int, v Heap) error { return s.List.SetStruct(i, v.Struct) }
+
+func (s Heap_List) String() string {
+	str, _ := text.MarshalList(0xf47bb59dbae61204, s.List)
+	return str
+}
+
+// Heap_Future is a wrapper for a Heap promised by a client call.
+type Heap_Future struct{ *capnp.Future }
+
+func (p Heap_Future) Struct() (Heap, error) {
+	s, err := p.Future.Struct()
+	return Heap{s}, err
+}
+
+type MergerIndexItem struct{ capnp.Struct }
+
+// MergerIndexItem_TypeID is the unique identifier for the type MergerIndexItem.
+const MergerIndexItem_TypeID = 0x875c7ec6203987d8
+
+func NewMergerIndexItem(s *capnp.Segment) (MergerIndexItem, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 0})
+	return MergerIndexItem{st}, err
+}
+
+func NewRootMergerIndexItem(s *capnp.Segment) (MergerIndexItem, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 0})
+	return MergerIndexItem{st}, err
+}
+
+func ReadRootMergerIndexItem(msg *capnp.Message) (MergerIndexItem, error) {
+	root, err := msg.Root()
+	return MergerIndexItem{root.Struct()}, err
+}
+
+func (s MergerIndexItem) String() string {
+	str, _ := text.Marshal(0x875c7ec6203987d8, s.Struct)
+	return str
+}
+
+func (s MergerIndexItem) Swid() int64 {
+	return int64(s.Struct.Uint64(0))
+}
+
+func (s MergerIndexItem) SetSwid(v int64) {
+	s.Struct.SetUint64(0, uint64(v))
+}
+
+func (s MergerIndexItem) CEnd() int64 {
+	return int64(s.Struct.Uint64(8))
+}
+
+func (s MergerIndexItem) SetCEnd(v int64) {
+	s.Struct.SetUint64(8, uint64(v))
+}
+
+// MergerIndexItem_List is a list of MergerIndexItem.
+type MergerIndexItem_List struct{ capnp.List }
+
+// NewMergerIndexItem creates a new list of MergerIndexItem.
+func NewMergerIndexItem_List(s *capnp.Segment, sz int32) (MergerIndexItem_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 16, PointerCount: 0}, sz)
+	return MergerIndexItem_List{l}, err
+}
+
+func (s MergerIndexItem_List) At(i int) MergerIndexItem { return MergerIndexItem{s.List.Struct(i)} }
+
+func (s MergerIndexItem_List) Set(i int, v MergerIndexItem) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s MergerIndexItem_List) String() string {
+	str, _ := text.MarshalList(0x875c7ec6203987d8, s.List)
+	return str
+}
+
+// MergerIndexItem_Future is a wrapper for a MergerIndexItem promised by a client call.
+type MergerIndexItem_Future struct{ *capnp.Future }
+
+func (p MergerIndexItem_Future) Struct() (MergerIndexItem, error) {
+	s, err := p.Future.Struct()
+	return MergerIndexItem{s}, err
+}
+
+type MergerIndex struct{ capnp.Struct }
+
+// MergerIndex_TypeID is the unique identifier for the type MergerIndex.
+const MergerIndex_TypeID = 0xf1223767bd770235
+
+func NewMergerIndex(s *capnp.Segment) (MergerIndex, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
+	return MergerIndex{st}, err
+}
+
+func NewRootMergerIndex(s *capnp.Segment) (MergerIndex, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
+	return MergerIndex{st}, err
+}
+
+func ReadRootMergerIndex(msg *capnp.Message) (MergerIndex, error) {
+	root, err := msg.Root()
+	return MergerIndex{root.Struct()}, err
+}
+
+func (s MergerIndex) String() string {
+	str, _ := text.Marshal(0xf1223767bd770235, s.Struct)
+	return str
+}
+
+func (s MergerIndex) Items() (MergerIndexItem_List, error) {
+	p, err := s.Struct.Ptr(0)
+	return MergerIndexItem_List{List: p.List()}, err
+}
+
+func (s MergerIndex) HasItems() bool {
+	return s.Struct.HasPtr(0)
+}
+
+func (s MergerIndex) SetItems(v MergerIndexItem_List) error {
+	return s.Struct.SetPtr(0, v.List.ToPtr())
+}
+
+// NewItems sets the items field to a newly
+// allocated MergerIndexItem_List, preferring placement in s's segment.
+func (s MergerIndex) NewItems(n int32) (MergerIndexItem_List, error) {
+	l, err := NewMergerIndexItem_List(s.Struct.Segment(), n)
+	if err != nil {
+		return MergerIndexItem_List{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
+}
+
+// MergerIndex_List is a list of MergerIndex.
+type MergerIndex_List struct{ capnp.List }
+
+// NewMergerIndex creates a new list of MergerIndex.
+func NewMergerIndex_List(s *capnp.Segment, sz int32) (MergerIndex_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
+	return MergerIndex_List{l}, err
+}
+
+func (s MergerIndex_List) At(i int) MergerIndex { return MergerIndex{s.List.Struct(i)} }
+
+func (s MergerIndex_List) Set(i int, v MergerIndex) error { return s.List.SetStruct(i, v.Struct) }
+
+func (s MergerIndex_List) String() string {
+	str, _ := text.MarshalList(0xf1223767bd770235, s.List)
+	return str
+}
+
+// MergerIndex_Future is a wrapper for a MergerIndex promised by a client call.
+type MergerIndex_Future struct{ *capnp.Future }
+
+func (p MergerIndex_Future) Struct() (MergerIndex, error) {
+	s, err := p.Future.Struct()
+	return MergerIndex{s}, err
+}
+
+const schema_91f0805429cab961 = "x\xda\x8cVoh\x1be\x18\x7f\x9e\xf7\xbdK\xd2m" +
+	".\xb9]`\x1a\x9dqc\xc2Z\xed\xec\x1f\x8b\xac\xa8" +
+	"\x9d\xd2B3Z\xd6\xb7\xad(\xa3\x83]\x93\xdb\x16\xec" +
+	"\xe5n\x97\x8bI\xa6\x1b+\xac\xdd:60\xa0(\x88" +
+	"\xe0'?)\"2dJ\xa9(\xfaA\x9d\xff@\x14" +
+	"\xa6h\xf7A\xbfj\x11EDO\x9eKr\x17n\xc9" +
+	"\xf4S\xde{\xf8\xf1<\xbf\xf7\xf7\xfb=w\xe9\x93\xf9" +
+	"~\xd6/\xff \x03\x88Q9\xe2\xa6\x86.\xce\xde\xb3" +
+	"\xbc\xb6\x0c\xcav\xe6jW>\xee\x9e=\xf3K\x0d\x00" +
+	"\xd5\xaf\xd9\x86\xba\xce\xa2\x00\xea\xf7\xec\x05@\xf7\xdbs" +
+	"\xfb\xee\xfa\xe8\xf4\xdc9\x10\xdb\xb1\x05)E\x01\x06w" +
+	"\xf2aT\xfb9\x81{y\x19\xd0\x8d\xd4\xd6\xff^~" +
+	"-\xf6\x0a(\xdb1\xc0\xcaH\x88\x15\xfe\x95\xfa\xbc\x87" +
+	"\xad\xf1\x11@\xf7\xb3j\xff7\x17.\x9f|\xab]\xe3" +
+	"\x0f9C\xf5K\x0f|\x95\xbf\x01\xe8\x1eY\xf8\xee\xf4" +
+	"\x8fc\xd9\xf7\x08,\x85\xc0y)\x85j\x95\x8ejI" +
+	"\xfa\x19\xd0\xbd\xfd\xdd\x0b\xef\xef\xbe\xb6\xf1\x01\x88;\x91" +
+	"\xb9o^;9\xf7\xe7b\xe9sx\x8cE\x91\xa14" +
+	"\x98\x91{\x10P\x1521\xae\xf6\xad\xdd=|p\xcb" +
+	"'\xd4\x98\x87\x1a\xbf.oBuU\xa6\xc6Wdb" +
+	"\xb1\xfe\xd2\xabG\x1f\xfc\xe3\xedO\x09\x8c!\xb0\x88l" +
+	"BU\x8b\x10\xf8p\x84\xee\x17\xbf\xbev\xe0\xde\xc9\xdf" +
+	"\xaf\x86\xee'\x93\xb6\x83\xa7\"\x87P\xady\xe8K\x11" +
+	"\xe2\xec\xb3l\x83V\x97\xa2\x1bj-\xea\x81\xa3\xc4\xe3" +
+	"\xaf\xd5\xc3+\xb5\xa1\x87\xbf\x08\xa9\xe1\xe9<\xb8#6" +
+	"\x8dj\x7f\x8c\x8e\xbd\xb14\x02\xbaC\xac\xbcz\xec\x81" +
+	"]\xbf\xb6qe\xf0\xa1\xae\x14\xaa\x93]\xd4;\xd3E" +
+	"\xb4\xa5m?\xbd\xf3\xf2\xe5\xa7\x7fkga\xb5\xeb\xba" +
+	"\xba\xe4a\x17\xbbF\xa0\xd7\xb5l\xd31\x8b\xf7\x15Y" +
+	"\xc904\xbb\x9a\x9b\xdf\x9b\xd5\xac\x825|0m\xcd" +
+	"V-}\x0aQ\xdc\x8a\x0c@yd\x00\x00Q\xd9\xb7" +
+	"\x0b\x00\x99\xd2OO\\\xe9\xa6'I\xd9I?\xb2r" +
+	"[\x0f@:k\x96\x0aN\xb4X2\xd2\xf3\x0b\xa6i" +
+	"D\xb3F1jh\x95\xf8Q[?\xe1O\xe3\xa1i" +
+	"\x93\xba}L\xb73\x85\xdc\x88^\xc98\xbaAcc" +
+	"\\\x02\x90\x10@\xe9\xee\x01\x10\xbb9\x8a>\x86\x0ab" +
+	"\x12\xa9\xd8K\xc5=\x1c\xc5\xfd\x0c\xe3\xc5r>\x872" +
+	"0\x94\x01\xe3\xd9\xb1\x82\xff\xd0\xf1~\xa3\xf8(\x0d\x91" +
+	"\xfc!\xb7L\x03\x88-\x1c\xc5\x1e\x86n\xd1\xb1u\xcd" +
+	"\xc8\xe4\x00\x8b\xb8\x15p\x8a\xa3\xd7pkK\xc3\xf0\x15" +
+	"\xc6u\xcd\"\xea@m\xb7\xf8m\xc7\x06\x00\xc4~\x8e" +
+	"b\x82\xb8\xb3:\xf7\xcc\x01\x001\xceQ\xcc2T\x18" +
+	"Oz\x02\x0bBNp\x14O0L?\xa5-\x94\xf4" +
+	"\x96K\xe4M;\xefT\x81\xd4\x06\x86\x12`:_\xc8" +
+	"\xe9\x95\xe6SGVSfY\xb7\x1f\xcf\x17r\xdc," +
+	"\x13\xb1\x84OL\xdb\x06 \xe68\x8a\xe3-\xa2\xeaT" +
+	"<\xc2Q,\x101V'\x96\xa7b\x8e\xa3\xb0\x18*" +
+	"\x9c'\x91\x03(\x06\x15\x8fs\x14\x0eC\xb4\x9aL\xf1" +
+	"\x84\x7f\xb2\xfdS\xf1\x063\xc2,g<\xb9\xf7\x96\xf3" +
+	"\xf1B\xce,\x93\xf3w\xb8.\xd6\xa7S\xc4\x9a\xe6\xef" +
+	"\xc0\x7f\xa8L\xf3{\x07\x02\xfb\xa3z\xc5\xc2D\xb0\xda" +
+	"\x80\x98\x00L[twL\x04/\x9ez\xbd#\x8bQ" +
+	"\xcd\xd1f\xb5\xf9\x05\x1dn\xeaaC\xaa\x0c\xf1\x1a\xe5" +
+	"(\xa6Z\xa4\x9a\xdc\x15\x18[\xdf\x04\xdc\x0c\x0c7\x03" +
+	"\xd2\x0e\xf8\xe7b\xc9h\x9e;\xb2\x19\xabX\xe4\x9bY" +
+	"\xae\xb3i\x09*\x05?\xc6Q$\x19\xc6\xe7\xb5\xa2~" +
+	"C+)\x1c\x02\xaaOh\x85\x9c\xa1\xd9O\xb6\x0fC" +
+	"\xaa]\x18RA\x18\xb0\x99\x85C\x0d\xdb\xcfR\x16\x1a" +
+	"^,\x0e\x03\x88g8\x8a\x17\x19r\xc7\xb7\x9b;A" +
+	"\x82\x9d\xbc\xa1\x17\x1d\xcd\x00n\x857j\xc4\xcb\xba_" +
+	"\xdd\x1c\xda\xb3\xf0\xe2\xce\xa4\xbd\xb0\x84\x1cJ\x05\x0e\xf9" +
+	"\x06M7\xbc\xc8\x11}l\xf9\xa6(\xda00\x1e\xbc" +
+	"1\\\xd3\xd2m\xcd1\xed\x96u\x8f\x07\x9fW@\x8f" +
+	"f\xd9s\xe3\xe6\"\xcf\xd4\x8b\x9eq\xe8i\x9c\xf49" +
+	"\x9e\"\x8e\x95\x86tM\x92\x8b\xa9\x86t\xe7[R\xb4" +
+	"D\xc53\x1c\xc5\xc5\x96\x85[\xa1\xe2Y\x8e\xe2Y\x86" +
+	"(%Q\x02P.\x91\xf0\xe79\x8a\xe7:\x09\xcf\xb3" +
+	"A5\xebWGL\x8b\xc2\x8e\x89\xe0\xdb\xf9\x1f\xbb\xe1" +
+	"\xbf\xa0\xb9^\x09\xc5q\xa0\x11\xc7\xdd\x0c\xd3yG7" +
+	"|\x09\x13\xc1\x1f\x8f\xba\x84\x1d=\x1d\x8f\xea\x9a\xf5\xff" +
+	"\xdb\xfa\x7f;\xeam\xff\x0d\x00\x00\xff\xff\x89 #\xe3"
 
 func init() {
 	schemas.Register(schema_91f0805429cab961,
 		0x86bf862b548c351a,
+		0x875c7ec6203987d8,
 		0xa008ac86fde19106,
+		0xb37ab58ad73179ce,
 		0xc06345e07edc6c60,
 		0xc3f2db24c28abb1b,
 		0xcb0c4f3a25bf3079,
 		0xccb7f73c66a69be1,
 		0xcdf64d2c4abfe20f,
 		0xcf7581f95c7adbb1,
-		0xd03e3591895dbdfb)
+		0xd03e3591895dbdfb,
+		0xf1223767bd770235,
+		0xf47bb59dbae61204)
 }

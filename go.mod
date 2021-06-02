@@ -3,13 +3,9 @@ module summarydb
 go 1.15
 
 require (
+	capnproto.org/go/capnp/v3 v3.0.0-alpha.1
 	github.com/dgraph-io/badger/v2 v2.2007.2
 	github.com/dgraph-io/ristretto v0.0.3
 	github.com/kr/pretty v0.2.0 // indirect
-	github.com/magiconair/properties v1.8.0
-	github.com/philhofer/fwd v1.0.0 // indirect
 	github.com/stretchr/testify v1.4.0
-	github.com/tinylib/msgp v1.1.2 // indirect
-	golang.org/x/net v0.0.0-20200904194848-62affa334b73 // indirect
-	zombiezen.com/go/capnproto2 v2.18.0+incompatible
 )

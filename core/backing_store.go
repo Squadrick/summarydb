@@ -2,13 +2,13 @@ package core
 
 import (
 	"bytes"
+	capnp "capnproto.org/go/capnp/v3"
 	"encoding/gob"
 	_ "encoding/gob"
 	"github.com/dgraph-io/ristretto"
 	"summarydb/protos"
 	"summarydb/storage"
 	"summarydb/tree"
-	capnp "zombiezen.com/go/capnproto2"
 )
 
 func SummaryWindowToBytes(window *SummaryWindow) []byte {

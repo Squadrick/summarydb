@@ -1,11 +1,11 @@
 package core
 
 import (
+	capnp "capnproto.org/go/capnp/v3"
 	"context"
 	"summarydb/protos"
 	"summarydb/storage"
 	"summarydb/window"
-	capnp "zombiezen.com/go/capnproto2"
 )
 
 type Stream struct {
