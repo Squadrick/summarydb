@@ -1,10 +1,7 @@
 package core
 
 import (
-	"bytes"
-	capnp "capnproto.org/go/capnp/v3"
-	"encoding/gob"
-	_ "encoding/gob"
+	"capnproto.org/go/capnp/v3"
 	"github.com/dgraph-io/ristretto"
 	"summarydb/protos"
 	"summarydb/storage"
@@ -224,27 +221,68 @@ func (store *BackingStore) DeleteLandmark(streamID, windowID int64) {
 	store.backend.DeleteLandmark(streamID, windowID)
 }
 
-// TODO: Implement alternate versions that use CapnProto. Might be faster.
 func HeapToBytes(heap *tree.MinHeap) []byte {
-	var buffer bytes.Buffer
-	enc := gob.NewEncoder(&buffer)
-	err := enc.Encode(*heap)
+	msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
 	if err != nil {
 		panic(err)
 	}
-	return buffer.Bytes()
+
+	heapProto, err := protos.NewRootHeap(seg)
+	if err != nil {
+		panic(err)
+	}
+
+	heapItemsProto, err := heapProto.NewItems(int32(len(*heap)))
+	if err != nil {
+		panic(err)
+	}
+
+	for i, it := range *heap {
+		heapItemProto, err := protos.NewHeapItem(seg)
+		if err != nil {
+			panic(err)
+		}
+		heapItemProto.SetValue(it.Value)
+		heapItemProto.SetIndex(int32(it.Index))
+		heapItemProto.SetPriority(int32(it.Priority))
+		err = heapItemsProto.Set(i, heapItemProto)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	buf, err := msg.Marshal()
+	if err != nil {
+		panic(err)
+	}
+	return buf
 }
 
-func BytesToHeap(rawBytes []byte) *tree.MinHeap {
-	var buffer bytes.Buffer
-	buffer.Write(rawBytes)
-	dec := gob.NewDecoder(&buffer)
-	var heap tree.MinHeap
-	err := dec.Decode(&heap)
+func BytesToHeap(buf []byte) *tree.MinHeap {
+	msg, err := capnp.Unmarshal(buf)
 	if err != nil {
 		panic(err)
 	}
-	return &heap
+	heapProto, err := protos.ReadRootHeap(msg)
+	if err != nil {
+		panic(err)
+	}
+	heapItemsProto, err := heapProto.Items()
+	if err != nil {
+		panic(err)
+	}
+
+	heap := tree.NewMinHeap(heapItemsProto.Len())
+	for i := 0; i < heapItemsProto.Len(); i++ {
+		heapItemProto := heapItemsProto.At(i)
+		heapItem := &tree.HeapItem{
+			Value:    heapItemProto.Value(),
+			Priority: int(heapItemProto.Priority()),
+			Index:    int(heapItemProto.Index()),
+		}
+		*heap = append(*heap, heapItem)
+	}
+	return heap
 }
 
 func (store *BackingStore) GetHeap(streamID int64) *tree.MinHeap {

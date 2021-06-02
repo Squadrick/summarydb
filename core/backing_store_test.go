@@ -115,7 +115,7 @@ func BenchmarkHeapToBytes(b *testing.B) {
 	for i := 2; i < 6; i += 1 {
 		size := int(math.Pow(10.0, float64(i)))
 		newHeap := generateHeap(size, GetIdentity(), GetIdentity())
-		b.Run("HeapToBytes-"+strconv.Itoa(size), func(b *testing.B) {
+		b.Run(strconv.Itoa(size), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				_ = HeapToBytes(newHeap)
 			}
@@ -130,7 +130,7 @@ func BenchmarkBytesToHeap(b *testing.B) {
 		size := int(math.Pow(10.0, float64(i)))
 		newHeap := generateHeap(size, GetIdentity(), GetIdentity())
 		rawBytes := HeapToBytes(newHeap)
-		b.Run("HeapToBytes-"+strconv.Itoa(size), func(b *testing.B) {
+		b.Run(strconv.Itoa(size), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				_ = BytesToHeap(rawBytes)
 			}
@@ -140,16 +140,16 @@ func BenchmarkBytesToHeap(b *testing.B) {
 
 // Starts at 500ns/item, drops to 300ns/item between
 // 100 and 1000 items.
-func BenchmarkStoringHeap(b *testing.B) {
+func BenchmarkHeap(b *testing.B) {
 	backend := storage.NewInMemoryBackend()
 	store := NewBackingStore(backend, false)
 	for i := 2; i < 6; i += 1 {
 		size := int(math.Pow(10.0, float64(i)))
 		newHeap := generateHeap(size, GetIdentity(), GetIdentity())
-		b.Run("HeapToBytes-"+strconv.Itoa(size), func(b *testing.B) {
+		b.Run(strconv.Itoa(size), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				store.PutHeap(0, newHeap)
-				store.GetHeap(0)
+				_ = store.GetHeap(0)
 			}
 		})
 	}
