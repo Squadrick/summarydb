@@ -154,3 +154,24 @@ func BenchmarkHeap(b *testing.B) {
 		})
 	}
 }
+
+func TestMergerIndexSerialization(t *testing.T) {
+	var buf []byte
+	{
+		index := NewMergerIndex()
+		for i := 100; i >= 0; i -= 1 {
+			index.Put(int64(i), int64(2*i+1))
+		}
+		buf = MergerIndexToBytes(index)
+	}
+	{
+		index := BytesToMergerIndex(buf)
+		idx := int64(0)
+		index.indexMap.Map(func(key tree.RbKey, val interface{}) bool {
+			assert.Equal(t, idx, key)
+			assert.Equal(t, 2*idx+1, val.(*MergerIndexItem).cEnd)
+			idx += 1
+			return false
+		})
+	}
+}
