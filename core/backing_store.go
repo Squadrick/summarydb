@@ -122,3 +122,13 @@ func (store *BackingStore) PutHeap(streamID int64, heap *tree.MinHeap) {
 	rawBytes := HeapToBytes(heap)
 	store.backend.PutHeap(streamID, rawBytes)
 }
+
+func (store *BackingStore) GetMergerIndex(streamID int64) *MergerIndex {
+	rawBytes := store.backend.GetMergerIndex(streamID)
+	return BytesToMergerIndex(rawBytes)
+}
+
+func (store *BackingStore) PutMergerIndex(streamID int64, index *MergerIndex) {
+	rawBytes := MergerIndexToBytes(index)
+	store.backend.PutMergerIndex(streamID, rawBytes)
+}

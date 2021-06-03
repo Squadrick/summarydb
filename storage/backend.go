@@ -45,10 +45,13 @@ type Backend interface {
 	PutLandmark(int64, int64, []byte)
 	DeleteLandmark(int64, int64)
 
-	IterateIndex(int64, func(int64), bool)
-
 	GetHeap(int64) []byte
 	PutHeap(int64, []byte)
+
+	GetMergerIndex(int64) []byte
+	PutMergerIndex(int64, []byte)
+
+	IterateIndex(int64, func(int64), bool)
 
 	Close()
 }
@@ -57,15 +60,17 @@ type InMemoryBackend struct {
 	summaryMap       map[string][]byte
 	landmarkMap      map[string][]byte
 	heapMap          map[int64][]byte
+	mergerIndexMap   map[int64][]byte
 	summaryMapMutex  sync.Mutex
 	landmarkMapMutex sync.Mutex
 }
 
 func NewInMemoryBackend() *InMemoryBackend {
 	return &InMemoryBackend{
-		summaryMap:  make(map[string][]byte),
-		landmarkMap: make(map[string][]byte),
-		heapMap:     make(map[int64][]byte),
+		summaryMap:     make(map[string][]byte),
+		landmarkMap:    make(map[string][]byte),
+		heapMap:        make(map[int64][]byte),
+		mergerIndexMap: make(map[int64][]byte),
 	}
 }
 
@@ -147,4 +152,12 @@ func (backend *InMemoryBackend) GetHeap(streamID int64) []byte {
 
 func (backend *InMemoryBackend) PutHeap(streamID int64, heap []byte) {
 	backend.heapMap[streamID] = heap
+}
+
+func (backend *InMemoryBackend) GetMergerIndex(streamID int64) []byte {
+	return backend.mergerIndexMap[streamID]
+}
+
+func (backend *InMemoryBackend) PutMergerIndex(streamID int64, index []byte) {
+	backend.mergerIndexMap[streamID] = index
 }

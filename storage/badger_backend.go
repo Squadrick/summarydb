@@ -7,6 +7,11 @@ import (
 	"math"
 )
 
+const (
+	HeapOffset        = iota
+	MergerIndexOffset = iota
+)
+
 func TestBadgerDB() *badger.DB {
 	option := badger.DefaultOptions("").WithInMemory(true)
 	db, err := badger.Open(option)
@@ -133,13 +138,23 @@ func (backend *BadgerBackend) DeleteLandmark(streamID, windowID int64) {
 }
 
 func (backend *BadgerBackend) GetHeap(streamID int64) []byte {
-	key := GetKey(false, streamID, math.MinInt64)
+	key := GetKey(false, streamID, math.MinInt64+HeapOffset)
 	return backend.txnGet(key)
 }
 
 func (backend *BadgerBackend) PutHeap(streamID int64, heap []byte) {
-	key := GetKey(false, streamID, math.MinInt64)
+	key := GetKey(false, streamID, math.MinInt64+HeapOffset)
 	backend.txnPut(key, heap)
+}
+
+func (backend *BadgerBackend) GetMergerIndex(streamID int64) []byte {
+	key := GetKey(false, streamID, math.MinInt64+MergerIndexOffset)
+	return backend.txnGet(key)
+}
+
+func (backend *BadgerBackend) PutMergerIndex(streamID int64, index []byte) {
+	key := GetKey(false, streamID, math.MinInt64+MergerIndexOffset)
+	backend.txnPut(key, index)
 }
 
 func GetKeyPrefix(landmark bool, streamID int64) []byte {

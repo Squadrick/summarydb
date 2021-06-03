@@ -162,7 +162,7 @@ func TestDBAppendAfterRead(t *testing.T) {
 			assert.Equal(t, result.error, 0.0)
 		}
 		numSummaryWindows := stream.manager.GetSummaryWindowInRange(0, 99)
-		assert.Equal(t, len(numSummaryWindows), 16) // FIXME: 10
+		assert.Equal(t, len(numSummaryWindows), 8)
 	}
 }
 

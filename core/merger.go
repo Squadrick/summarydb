@@ -77,6 +77,7 @@ func (hm *Merger) PrimeUp() {
 		panic("cannot prime without window manager")
 	}
 	hm.mergeCounts = hm.streamWindowManager.GetHeap()
+	hm.index = hm.streamWindowManager.GetMergerIndex()
 	hm.index.PopulateFromHeap(hm.mergeCounts)
 }
 
@@ -157,15 +158,25 @@ func (hm *Merger) writeHeapToDisk() {
 	}
 }
 
+func (hm *Merger) writeMergeIndexToDisk() {
+	if hm.streamWindowManager != nil {
+		hm.streamWindowManager.PutMergerIndex(hm.index)
+	}
+}
+
 func (hm *Merger) issueAllPendingMerges() {
 	var wg sync.WaitGroup
 
 	// NOTE: This is only safe because `issuePendingMerge()` does not
-	// access the heap (mergeCounts). If that changes in the future,
+	// access the heap or merger index. If that changes in the future,
 	// these two operations cannot be parallelized.
-	wg.Add(1)
+	wg.Add(2) // heap, index
 	go func() {
 		hm.writeHeapToDisk()
+		wg.Done()
+	}()
+	go func() {
+		hm.writeMergeIndexToDisk()
 		wg.Done()
 	}()
 

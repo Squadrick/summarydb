@@ -159,3 +159,11 @@ func (manager *StreamWindowManager) PutHeap(heap *tree.MinHeap) {
 func (manager *StreamWindowManager) GetHeap() *tree.MinHeap {
 	return manager.backingStore.GetHeap(manager.id)
 }
+
+func (manager *StreamWindowManager) PutMergerIndex(index *MergerIndex) {
+	manager.backingStore.PutMergerIndex(manager.id, index)
+}
+
+func (manager *StreamWindowManager) GetMergerIndex() *MergerIndex {
+	return manager.backingStore.GetMergerIndex(manager.id)
+}
