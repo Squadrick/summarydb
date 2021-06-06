@@ -3,6 +3,7 @@ package core
 import (
 	"container/heap"
 	"context"
+	"fmt"
 	"summarydb/tree"
 	"summarydb/window"
 	"sync"
@@ -253,6 +254,15 @@ func (hm *Merger) flush() {
 	}
 }
 
+func (hm *Merger) PrintSummaryWindows() {
+	windows := hm.streamWindowManager.GetSummaryWindowInRange(0, hm.numElements+1)
+	results := make([]int64, 0)
+	for _, win := range windows {
+		results = append(results, int64(win.Data.Count.Value))
+	}
+	fmt.Println(results)
+}
+
 func (hm *Merger) Run(ctx context.Context, inputCh <-chan *MergeEvent) {
 	for {
 		select {
@@ -265,6 +275,7 @@ func (hm *Merger) Run(ctx context.Context, inputCh <-chan *MergeEvent) {
 				continue
 			} else {
 				hm.Process(mergeEvent)
+				hm.PrintSummaryWindows()
 			}
 
 		case <-ctx.Done():

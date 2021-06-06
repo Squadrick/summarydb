@@ -26,6 +26,10 @@ func NewQueryIndex() *QueryIndex {
 	return &QueryIndex{tStarts: tree.NewRbTree()}
 }
 
+func (index *QueryIndex) GetTree() *tree.RbTree {
+	return index.tStarts
+}
+
 func (index *QueryIndex) Add(tStart int64) {
 	index.tStarts.Insert(tStart, tStart)
 }

@@ -152,7 +152,7 @@ func testPipelineFinalStep(t *testing.T, backend storage.Backend) {
 	manager.SetBackingStore(NewBackingStore(backend, false))
 	windowing := window.NewGenericWindowing(window.NewExponentialLengthsSequence(2))
 	pipeline := NewPipeline(windowing).
-		SetBufferSize(50).
+		SetBufferSize(8).
 		SetWindowsPerMerge(2).
 		SetWindowManager(manager)
 
@@ -166,14 +166,20 @@ func testPipelineFinalStep(t *testing.T, backend storage.Backend) {
 
 	pipeline.Flush(true)
 	tl := int64(len(ExpectedEvolutionExp) - 1)
-	expectedAnswer := ExpectedEvolutionExp[tl]
 	results := make([]int64, 0)
 	summaryWindows := manager.GetSummaryWindowInRange(0, tl)
-
 	for _, summaryWindow := range summaryWindows {
 		results = append(results, int64(summaryWindow.Data.Count.Value))
 	}
-	assert.Equal(t, expectedAnswer, results)
+
+	reduceSum := func(arr []int64) int64 {
+		sum := int64(0)
+		for i := 0; i < len(arr); i++ {
+			sum += arr[i]
+		}
+		return sum
+	}
+	assert.Equal(t, tl+1, reduceSum(results))
 	cancelFunc()
 }
 
