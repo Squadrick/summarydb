@@ -275,7 +275,6 @@ func (hm *Merger) Run(ctx context.Context, inputCh <-chan *MergeEvent) {
 				continue
 			} else {
 				hm.Process(mergeEvent)
-				hm.PrintSummaryWindows()
 			}
 
 		case <-ctx.Done():
