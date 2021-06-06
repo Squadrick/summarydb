@@ -9,7 +9,7 @@ type IngestBuffer struct {
 	Size       int64
 	timestamps []int64
 	values     []float64
-	allocator  *IngestBufferAllocator
+	allocator  IngestBufferAllocatorIFace
 }
 
 var shutdownIngestBuffer *IngestBuffer = nil
@@ -35,7 +35,7 @@ func ConstFlushIngestBuffer() *IngestBuffer {
 	return flushIngestBuffer
 }
 
-func NewIngestBuffer(capacity int64, allocator *IngestBufferAllocator) *IngestBuffer {
+func NewIngestBuffer(capacity int64, allocator IngestBufferAllocatorIFace) *IngestBuffer {
 	return &IngestBuffer{
 		Capacity:   capacity,
 		Size:       0,
@@ -90,49 +90,6 @@ func (ib *IngestBuffer) Get(pos int64) (int64, float64, bool) {
 	return ib.timestamps[pos], ib.values[pos], true
 }
 
-// -- END OF IngestBuffer --
-
-type IngestBufferAllocator struct {
-	cv             *sync.Cond
-	currentBuffers int64
-	maxBuffers     int64
-}
-
-func NewIngestBufferAllocator() *IngestBufferAllocator {
-	mutex := sync.Mutex{}
-	return &IngestBufferAllocator{
-		cv:             sync.NewCond(&mutex),
-		currentBuffers: 0,
-		maxBuffers:     1,
-	}
-}
-
-func (iba *IngestBufferAllocator) Allocate(capacity int64) *IngestBuffer {
-	iba.cv.L.Lock()
-	for iba.currentBuffers >= iba.maxBuffers {
-		iba.cv.Wait()
-	}
-	iba.currentBuffers += 1
-	iba.cv.L.Unlock()
-	return NewIngestBuffer(capacity, iba)
-}
-
-func (iba *IngestBufferAllocator) Deallocate() {
-	iba.cv.L.Lock()
-	iba.currentBuffers -= 1
-	iba.cv.Broadcast()
-	iba.cv.L.Unlock()
-}
-
-func (iba *IngestBufferAllocator) SetMaxBuffers(maxBuffers int64) {
-	iba.cv.L.Lock()
-	iba.maxBuffers = maxBuffers
-	iba.cv.Broadcast()
-	iba.cv.L.Unlock()
-}
-
-// -- END of IngestBufferAllocator
-
 type Ingester struct {
 	activeBuffer    *IngestBuffer
 	allocator       *IngestBufferAllocator
@@ -164,11 +121,11 @@ func (i *Ingester) Append(timestamp int64, value float64) {
 	if i.activeBuffer == nil {
 		i.activeBuffer = i.allocator.Allocate(i.bufferCapacity)
 	}
-	if ok := i.activeBuffer.Append(timestamp, value); !ok {
-		// If an append fails, it is due to the buffer being
-		// full. Push it to queue.
+	if i.activeBuffer.IsFull() {
 		i.pushActiveBufferToQueue()
+		i.activeBuffer = i.allocator.Allocate(i.bufferCapacity)
 	}
+	i.activeBuffer.Append(timestamp, value)
 }
 
 func (i *Ingester) Flush(shutdown bool) {

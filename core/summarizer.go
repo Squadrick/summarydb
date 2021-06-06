@@ -67,7 +67,9 @@ func (s *Summarizer) Run(
 	for {
 		select {
 		case ingestBuffer := <-summarizerQueue:
-			if ingestBuffer == ConstShutdownIngestBuffer() {
+			if ingestBuffer == nil {
+				continue
+			} else if ingestBuffer == ConstShutdownIngestBuffer() {
 				s.flush()
 				break
 			} else if ingestBuffer == ConstFlushIngestBuffer() {
