@@ -17,8 +17,9 @@ type Pipeline struct {
 	barrier             *Barrier
 	windowing           window.Windowing
 
-	bufferSize  int64
-	numElements int64
+	bufferSize    int64
+	numElements   int64
+	lastTimestamp int64
 
 	partialBuffers  chan *IngestBuffer
 	summarizerQueue chan *IngestBuffer
@@ -42,6 +43,7 @@ func NewPipeline(windowing window.Windowing) *Pipeline {
 		windowing:           windowing,
 		bufferSize:          0,
 		numElements:         0,
+		lastTimestamp:       0,
 		partialBuffers:      partialBuffers,
 		summarizerQueue:     summarizerQueue,
 		writerQueue:         writerQueue,
@@ -57,12 +59,17 @@ func (p *Pipeline) Run(ctx context.Context) {
 }
 
 func (p *Pipeline) Append(timestamp int64, value float64) {
+	if timestamp < p.lastTimestamp {
+		timestamp = p.lastTimestamp + 1
+	}
+
 	if p.bufferSize > 0 {
 		p.ingester.Append(timestamp, value)
 	} else {
 		p.appendUnbuffered(timestamp, value)
 	}
 	p.numElements += 1
+	p.lastTimestamp = timestamp
 	p.streamWindowManager.PutCountAndTime(
 		storage.Pipeline,
 		p.numElements,
@@ -167,7 +174,8 @@ func (p *Pipeline) PrimeUp() {
 	if p.streamWindowManager == nil {
 		panic("cannot prime without window manager")
 	}
-	p.numElements, _ = p.streamWindowManager.GetCountAndTime(storage.Pipeline)
+	p.numElements, p.lastTimestamp =
+		p.streamWindowManager.GetCountAndTime(storage.Pipeline)
 	// TODO: PrimeUp can fail for writer in unbuffered mode, since no count/time
 	// is written.
 	//p.writer.PrimeUp()
