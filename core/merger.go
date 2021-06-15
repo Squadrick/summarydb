@@ -4,6 +4,7 @@ import (
 	"container/heap"
 	"context"
 	"fmt"
+	"summarydb/storage"
 	"summarydb/tree"
 	"summarydb/window"
 	"sync"
@@ -52,6 +53,7 @@ type Merger struct {
 	pendingMerges       map[int64][]int64
 	barrier             *Barrier
 	mutex               sync.Mutex
+	latestTimeStart     int64
 }
 
 func NewMerger(windowing window.Windowing, windowsPerBatch int64, barrier *Barrier) *Merger {
@@ -80,6 +82,8 @@ func (hm *Merger) PrimeUp() {
 	hm.mergeCounts = hm.streamWindowManager.GetHeap()
 	hm.index = hm.streamWindowManager.GetMergerIndex()
 	hm.index.PopulateFromHeap(hm.mergeCounts)
+	hm.numElements, hm.latestTimeStart =
+		hm.streamWindowManager.GetCountAndTime(storage.Merger)
 }
 
 // Given consecutive windows w0, w1 which together span the count [c0, c1],
@@ -189,6 +193,10 @@ func (hm *Merger) issueAllPendingMerges() {
 		}(head, tail)
 	}
 	wg.Wait()
+	hm.streamWindowManager.PutCountAndTime(
+		storage.Merger,
+		hm.numElements,
+		hm.latestTimeStart)
 
 	// clear pending merges
 	hm.pendingMerges = make(map[int64][]int64)
@@ -229,6 +237,7 @@ func (hm *Merger) updatePendingMerges() {
 func (hm *Merger) Process(mergeEvent *MergeEvent) {
 	hm.mutex.Lock()
 	defer hm.mutex.Unlock()
+	hm.latestTimeStart = mergeEvent.Id
 	hm.numElements += mergeEvent.Size
 	hm.numWindows += 1
 

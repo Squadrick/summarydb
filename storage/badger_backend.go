@@ -10,6 +10,11 @@ import (
 const (
 	HeapOffset        = iota
 	MergerIndexOffset = iota
+	CompTypeOffset    = iota // with landmark = true
+	CompTypeOffset_P  = iota
+	CompTypeOffset_W  = iota
+	CompTypeOffset_M  = iota
+	Footer            = iota
 )
 
 func TestBadgerDB() *badger.DB {
@@ -157,6 +162,26 @@ func (backend *BadgerBackend) PutMergerIndex(streamID int64, index []byte) {
 	backend.txnPut(key, index)
 }
 
+func (backend *BadgerBackend) PutCountAndTime(
+	streamID int64,
+	compType CompType,
+	count int64,
+	timestamp int64) {
+	key := GetKey(true, streamID,
+		math.MinInt64+CompTypeOffset+int64(compType))
+	buf := TwoInt64ToByte128(count, timestamp)
+	backend.txnPut(key, buf)
+}
+
+func (backend *BadgerBackend) GetCountAndTime(
+	streamID int64,
+	compType CompType) (int64, int64) {
+	key := GetKey(true, streamID,
+		math.MinInt64+CompTypeOffset+int64(compType))
+	buf := backend.txnGet(key)
+	return Byte128ToTwoInt64(buf)
+}
+
 func GetKeyPrefix(landmark bool, streamID int64) []byte {
 	buf := make([]byte, 9)
 	binary.LittleEndian.PutUint64(buf[:8], uint64(streamID))
@@ -173,7 +198,11 @@ func (backend *BadgerBackend) IterateIndex(streamID int64, lambda func(int64), l
 
 		for iter.Seek(nil); iter.Valid(); iter.Next() {
 			item := iter.Item()
-			lambda(GetWindowIDFromKey(item.Key()))
+			windowId := GetWindowIDFromKey(item.Key())
+			// MinInt64 to MinInt64 + Footer is reserved for special entries.
+			if windowId > math.MinInt64+Footer {
+				lambda(GetWindowIDFromKey(item.Key()))
+			}
 		}
 		return nil
 	})

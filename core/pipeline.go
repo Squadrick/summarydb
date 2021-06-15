@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"summarydb/storage"
 	"summarydb/window"
 )
 
@@ -62,6 +63,10 @@ func (p *Pipeline) Append(timestamp int64, value float64) {
 		p.appendUnbuffered(timestamp, value)
 	}
 	p.numElements += 1
+	p.streamWindowManager.PutCountAndTime(
+		storage.Pipeline,
+		p.numElements,
+		timestamp)
 }
 
 func (p *Pipeline) appendUnbuffered(timestamp int64, value float64) {
@@ -162,5 +167,11 @@ func (p *Pipeline) PrimeUp() {
 	if p.streamWindowManager == nil {
 		panic("cannot prime without window manager")
 	}
+	p.numElements, _ = p.streamWindowManager.GetCountAndTime(storage.Pipeline)
+	// TODO: PrimeUp can fail for writer in unbuffered mode, since no count/time
+	// is written.
+	//p.writer.PrimeUp()
 	p.merger.PrimeUp()
+
+	// Restore here.
 }

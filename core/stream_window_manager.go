@@ -167,3 +167,15 @@ func (manager *StreamWindowManager) PutMergerIndex(index *MergerIndex) {
 func (manager *StreamWindowManager) GetMergerIndex() *MergerIndex {
 	return manager.backingStore.GetMergerIndex(manager.id)
 }
+
+func (manager *StreamWindowManager) PutCountAndTime(
+	compType storage.CompType,
+	count int64,
+	timestamp int64) {
+	manager.backingStore.PutCountAndTime(manager.id, compType, count, timestamp)
+}
+
+func (manager *StreamWindowManager) GetCountAndTime(
+	compType storage.CompType) (int64, int64) {
+	return manager.backingStore.GetCountAndTime(manager.id, compType)
+}

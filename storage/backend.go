@@ -2,8 +2,29 @@ package storage
 
 import (
 	"encoding/binary"
+	"strconv"
 	"sync"
 )
+
+type CompType int
+
+const (
+	Pipeline CompType = iota
+	Writer   CompType = iota
+	Merger   CompType = iota
+)
+
+func TwoInt64ToByte128(a int64, b int64) []byte {
+	buf := make([]byte, 16)
+	binary.LittleEndian.PutUint64(buf[:8], uint64(a))
+	binary.LittleEndian.PutUint64(buf[8:], uint64(b))
+	return buf
+}
+
+func Byte128ToTwoInt64(buf []byte) (int64, int64) {
+	return int64(binary.LittleEndian.Uint64(buf[:8])),
+		int64(binary.LittleEndian.Uint64(buf[8:]))
+}
 
 func BitSet(cond bool) byte {
 	if cond {
@@ -51,26 +72,32 @@ type Backend interface {
 	GetMergerIndex(int64) []byte
 	PutMergerIndex(int64, []byte)
 
+	PutCountAndTime(int64, CompType, int64, int64)
+	GetCountAndTime(int64, CompType) (int64, int64)
+
 	IterateIndex(int64, func(int64), bool)
 
 	Close()
 }
 
 type InMemoryBackend struct {
-	summaryMap       map[string][]byte
-	landmarkMap      map[string][]byte
-	heapMap          map[int64][]byte
-	mergerIndexMap   map[int64][]byte
-	summaryMapMutex  sync.Mutex
-	landmarkMapMutex sync.Mutex
+	summaryMap           map[string][]byte
+	landmarkMap          map[string][]byte
+	heapMap              map[int64][]byte
+	mergerIndexMap       map[int64][]byte
+	countAndTimeMap      map[string][]byte
+	summaryMapMutex      sync.Mutex
+	landmarkMapMutex     sync.Mutex
+	countAndTimeMapMutex sync.Mutex
 }
 
 func NewInMemoryBackend() *InMemoryBackend {
 	return &InMemoryBackend{
-		summaryMap:     make(map[string][]byte),
-		landmarkMap:    make(map[string][]byte),
-		heapMap:        make(map[int64][]byte),
-		mergerIndexMap: make(map[int64][]byte),
+		summaryMap:      make(map[string][]byte),
+		landmarkMap:     make(map[string][]byte),
+		heapMap:         make(map[int64][]byte),
+		mergerIndexMap:  make(map[int64][]byte),
+		countAndTimeMap: make(map[string][]byte),
 	}
 }
 
@@ -160,4 +187,24 @@ func (backend *InMemoryBackend) GetMergerIndex(streamID int64) []byte {
 
 func (backend *InMemoryBackend) PutMergerIndex(streamID int64, index []byte) {
 	backend.mergerIndexMap[streamID] = index
+}
+
+func (backend *InMemoryBackend) PutCountAndTime(
+	streamID int64,
+	compType CompType,
+	count int64,
+	timestamp int64) {
+	backend.countAndTimeMapMutex.Lock()
+	defer backend.countAndTimeMapMutex.Unlock()
+	key := strconv.Itoa(int(streamID)) + strconv.Itoa(int(compType))
+	backend.countAndTimeMap[key] = TwoInt64ToByte128(count, timestamp)
+}
+
+func (backend *InMemoryBackend) GetCountAndTime(
+	streamID int64,
+	compType CompType) (int64, int64) {
+	backend.countAndTimeMapMutex.Lock()
+	defer backend.countAndTimeMapMutex.Unlock()
+	key := strconv.Itoa(int(streamID)) + strconv.Itoa(int(compType))
+	return Byte128ToTwoInt64(backend.countAndTimeMap[key])
 }

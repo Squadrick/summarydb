@@ -132,3 +132,17 @@ func (store *BackingStore) PutMergerIndex(streamID int64, index *MergerIndex) {
 	rawBytes := MergerIndexToBytes(index)
 	store.backend.PutMergerIndex(streamID, rawBytes)
 }
+
+func (store *BackingStore) PutCountAndTime(
+	streamID int64,
+	compType storage.CompType,
+	count int64,
+	timestamp int64) {
+	store.backend.PutCountAndTime(streamID, compType, count, timestamp)
+}
+
+func (store *BackingStore) GetCountAndTime(
+	streamID int64,
+	compType storage.CompType) (int64, int64) {
+	return store.backend.GetCountAndTime(streamID, compType)
+}
