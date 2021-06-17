@@ -8,14 +8,24 @@ import "summarydb/storage"
 func PopulateBackendIndex(backend storage.Backend,
 	summaryIndex *storage.QueryIndex,
 	landmarkIndex *storage.QueryIndex,
-	streamID int64) {
+	streamID int64) error {
 
-	generateInsertionLambda := func(index *storage.QueryIndex) func(int64) {
-		insertToIndex := func(windowID int64) {
+	generateInsertionLambda := func(index *storage.QueryIndex) func(int64) error {
+		insertToIndex := func(windowID int64) error {
 			index.Add(windowID)
+			return nil
 		}
 		return insertToIndex
 	}
-	backend.IterateIndex(streamID, generateInsertionLambda(summaryIndex), false)
-	backend.IterateIndex(streamID, generateInsertionLambda(landmarkIndex), true)
+	err := backend.IterateIndex(
+		streamID, generateInsertionLambda(summaryIndex), false)
+	if err != nil {
+		return err
+	}
+	err = backend.IterateIndex(
+		streamID, generateInsertionLambda(landmarkIndex), true)
+	if err != nil {
+		return err
+	}
+	return err
 }
