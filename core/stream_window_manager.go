@@ -36,8 +36,8 @@ func (manager *StreamWindowManager) SetBackingStore(store *BackingStore) {
 	manager.backingStore = store
 }
 
-func (manager *StreamWindowManager) PrimeUp() {
-	PopulateBackendIndex(manager.backingStore.backend,
+func (manager *StreamWindowManager) PrimeUp() error {
+	return PopulateBackendIndex(manager.backingStore.backend,
 		manager.summaryIndex,
 		manager.landmarkIndex,
 		manager.id)
@@ -71,44 +71,47 @@ func (manager *StreamWindowManager) InsertIntoSummaryWindow(window *SummaryWindo
 	manager.operators.Insert(window.Data, value, ts)
 }
 
-func (manager *StreamWindowManager) GetSummaryWindow(swid int64) *SummaryWindow {
+func (manager *StreamWindowManager) GetSummaryWindow(swid int64) (*SummaryWindow, error) {
 	return manager.backingStore.Get(manager.id, swid)
 }
 
-func (manager *StreamWindowManager) GetSummaryWindowInRange(t0, t1 int64) []*SummaryWindow {
+func (manager *StreamWindowManager) GetSummaryWindowInRange(t0, t1 int64) ([]*SummaryWindow, error) {
 	ids := manager.summaryIndex.GetOverlappingWindowIDs(t0, t1)
 	summaryWindows := make([]*SummaryWindow, 0, len(ids))
 
 	for _, id := range ids {
-		window := manager.GetSummaryWindow(id)
+		window, err := manager.GetSummaryWindow(id)
+		if err != nil {
+			return nil, err
+		}
 		if window.TimeEnd < t0 || window.TimeStart > t1 {
 			continue
 		}
-		summaryWindows = append(summaryWindows, manager.GetSummaryWindow(id))
+		summaryWindows = append(summaryWindows, window)
 	}
-	return summaryWindows
+	return summaryWindows, nil
 }
 
-func (manager *StreamWindowManager) PutSummaryWindow(window *SummaryWindow) {
+func (manager *StreamWindowManager) PutSummaryWindow(window *SummaryWindow) error {
 	manager.summaryIndex.Add(window.Id())
-	manager.backingStore.Put(manager.id, window.Id(), window)
+	return manager.backingStore.Put(manager.id, window.Id(), window)
 }
 
-func (manager *StreamWindowManager) DeleteSummaryWindow(swid int64) {
+func (manager *StreamWindowManager) DeleteSummaryWindow(swid int64) error {
 	manager.summaryIndex.Remove(swid)
-	manager.backingStore.Delete(manager.id, swid)
+	return manager.backingStore.Delete(manager.id, swid)
 }
 
 // insert `mergedWindow` and delete all `deletedWindowIDs`.
 func (manager *StreamWindowManager) UpdateMergeSummaryWindows(
 	mergedWindow *SummaryWindow,
-	deletedWindowIDs []int64) {
+	deletedWindowIDs []int64) error {
 	manager.summaryIndex.Add(mergedWindow.Id())
 	for _, swid := range deletedWindowIDs {
 		manager.summaryIndex.Remove(swid)
 	}
 
-	manager.backingStore.MergeWindows(
+	return manager.backingStore.MergeWindows(
 		manager.id,
 		mergedWindow,
 		deletedWindowIDs)
@@ -120,62 +123,65 @@ func (manager *StreamWindowManager) NumSummaryWindows() int {
 
 // LANDMARK WINDOWS
 
-func (manager *StreamWindowManager) GetLandmarkWindow(lwid int64) *LandmarkWindow {
+func (manager *StreamWindowManager) GetLandmarkWindow(lwid int64) (*LandmarkWindow, error) {
 	return manager.backingStore.GetLandmark(manager.id, lwid)
 }
 
-func (manager *StreamWindowManager) GetLandmarkWindowInRange(t0, t1 int64) []*LandmarkWindow {
+func (manager *StreamWindowManager) GetLandmarkWindowInRange(t0, t1 int64) ([]*LandmarkWindow, error) {
 	ids := manager.landmarkIndex.GetOverlappingWindowIDs(t0, t1)
 	landmarkWindows := make([]*LandmarkWindow, 0, len(ids))
 
 	for _, id := range ids {
-		window := manager.GetLandmarkWindow(id)
+		window, err := manager.GetLandmarkWindow(id)
+		if err != nil {
+			return nil, err
+		}
 		if window.TimeEnd < t0 {
 			continue
 		}
-		landmarkWindows = append(landmarkWindows, manager.GetLandmarkWindow(id))
+		landmarkWindows = append(landmarkWindows, window)
 	}
-	return landmarkWindows
+	return landmarkWindows, nil
 }
 
-func (manager *StreamWindowManager) PutLandmarkWindow(window *LandmarkWindow) {
+func (manager *StreamWindowManager) PutLandmarkWindow(window *LandmarkWindow) error {
 	manager.landmarkIndex.Add(window.Id())
-	manager.backingStore.PutLandmark(manager.id, window.Id(), window)
+	return manager.backingStore.PutLandmark(manager.id, window.Id(), window)
 }
 
-func (manager *StreamWindowManager) DeleteLandmarkWindow(swid int64) {
+func (manager *StreamWindowManager) DeleteLandmarkWindow(swid int64) error {
 	manager.landmarkIndex.Remove(swid)
-	manager.backingStore.DeleteLandmark(manager.id, swid)
+	return manager.backingStore.DeleteLandmark(manager.id, swid)
 }
 
 func (manager *StreamWindowManager) NumLandmarkWindows() int {
 	return manager.landmarkIndex.GetNumberWindows()
 }
 
-func (manager *StreamWindowManager) PutHeap(heap *tree.MinHeap) {
-	manager.backingStore.PutHeap(manager.id, heap)
+func (manager *StreamWindowManager) PutHeap(heap *tree.MinHeap) error {
+	return manager.backingStore.PutHeap(manager.id, heap)
 }
 
-func (manager *StreamWindowManager) GetHeap() *tree.MinHeap {
+func (manager *StreamWindowManager) GetHeap() (*tree.MinHeap, error) {
 	return manager.backingStore.GetHeap(manager.id)
 }
 
-func (manager *StreamWindowManager) PutMergerIndex(index *MergerIndex) {
-	manager.backingStore.PutMergerIndex(manager.id, index)
+func (manager *StreamWindowManager) PutMergerIndex(index *MergerIndex) error {
+	return manager.backingStore.PutMergerIndex(manager.id, index)
 }
 
-func (manager *StreamWindowManager) GetMergerIndex() *MergerIndex {
+func (manager *StreamWindowManager) GetMergerIndex() (*MergerIndex, error) {
 	return manager.backingStore.GetMergerIndex(manager.id)
 }
 
 func (manager *StreamWindowManager) PutCountAndTime(
 	compType storage.CompType,
 	count int64,
-	timestamp int64) {
-	manager.backingStore.PutCountAndTime(manager.id, compType, count, timestamp)
+	timestamp int64) error {
+	return manager.backingStore.PutCountAndTime(manager.id, compType, count, timestamp)
 }
 
 func (manager *StreamWindowManager) GetCountAndTime(
-	compType storage.CompType) (int64, int64) {
+	compType storage.CompType) (int64, int64, error) {
 	return manager.backingStore.GetCountAndTime(manager.id, compType)
 }
