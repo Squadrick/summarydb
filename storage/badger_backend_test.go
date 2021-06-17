@@ -38,8 +38,10 @@ func TestBadgerBackend_Summary(t *testing.T) {
 	badger := NewBadgerBacked(testConfig)
 
 	window := []byte{0, 1, 2, 3, 4, 5}
-	badger.Put(12, 34, window)
-	dbWindow := badger.Get(12, 34)
+	err := badger.Put(12, 34, window)
+	assert.NoError(t, err)
+	dbWindow, err := badger.Get(12, 34)
+	assert.NoError(t, err)
 
 	assert.Equal(t, window, dbWindow)
 }

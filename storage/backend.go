@@ -2,6 +2,7 @@ package storage
 
 import (
 	"encoding/binary"
+	"errors"
 	"strconv"
 	"sync"
 )
@@ -57,27 +58,27 @@ func GetLandmarkFromKey(buf []byte) bool {
 }
 
 type Backend interface {
-	Get(int64, int64) []byte
-	Put(int64, int64, []byte)
-	Delete(int64, int64)
-	Merge(int64, int64, []byte, []int64)
+	Get(int64, int64) ([]byte, error)
+	Put(int64, int64, []byte) error
+	Delete(int64, int64) error
+	Merge(int64, int64, []byte, []int64) error
 
-	GetLandmark(int64, int64) []byte
-	PutLandmark(int64, int64, []byte)
-	DeleteLandmark(int64, int64)
+	GetLandmark(int64, int64) ([]byte, error)
+	PutLandmark(int64, int64, []byte) error
+	DeleteLandmark(int64, int64) error
 
-	GetHeap(int64) []byte
-	PutHeap(int64, []byte)
+	GetHeap(int64) ([]byte, error)
+	PutHeap(int64, []byte) error
 
-	GetMergerIndex(int64) []byte
-	PutMergerIndex(int64, []byte)
+	GetMergerIndex(int64) ([]byte, error)
+	PutMergerIndex(int64, []byte) error
 
-	PutCountAndTime(int64, CompType, int64, int64)
-	GetCountAndTime(int64, CompType) (int64, int64)
+	PutCountAndTime(int64, CompType, int64, int64) error
+	GetCountAndTime(int64, CompType) (int64, int64, error)
 
-	IterateIndex(int64, func(int64), bool)
+	IterateIndex(int64, func(int64) error, bool) error
 
-	Close()
+	Close() error
 }
 
 type InMemoryBackend struct {
@@ -101,29 +102,35 @@ func NewInMemoryBackend() *InMemoryBackend {
 	}
 }
 
-func (backend *InMemoryBackend) Get(streamID, windowID int64) []byte {
+func (backend *InMemoryBackend) Get(streamID, windowID int64) ([]byte, error) {
 	backend.summaryMapMutex.Lock()
 	defer backend.summaryMapMutex.Unlock()
-	return backend.summaryMap[string(GetKey(false, streamID, windowID))]
+	summaryWindow, exists := backend.summaryMap[string(GetKey(false, streamID, windowID))]
+	if !exists {
+		return nil, errors.New("summary window not found")
+	}
+	return summaryWindow, nil
 }
 
-func (backend *InMemoryBackend) Put(streamID, windowID int64, buf []byte) {
+func (backend *InMemoryBackend) Put(streamID, windowID int64, buf []byte) error {
 	backend.summaryMapMutex.Lock()
 	defer backend.summaryMapMutex.Unlock()
 	backend.summaryMap[string(GetKey(false, streamID, windowID))] = buf
+	return nil
 }
 
-func (backend *InMemoryBackend) Delete(streamID, windowID int64) {
+func (backend *InMemoryBackend) Delete(streamID, windowID int64) error {
 	backend.summaryMapMutex.Lock()
 	defer backend.summaryMapMutex.Unlock()
 	delete(backend.summaryMap, string(GetKey(false, streamID, windowID)))
+	return nil
 }
 
 func (backend *InMemoryBackend) Merge(
 	streamID int64,
 	windowID int64,
 	buf []byte,
-	deletedIDs []int64) {
+	deletedIDs []int64) error {
 	backend.summaryMapMutex.Lock()
 	defer backend.summaryMapMutex.Unlock()
 
@@ -131,32 +138,40 @@ func (backend *InMemoryBackend) Merge(
 	for _, ID := range deletedIDs {
 		delete(backend.summaryMap, string(GetKey(false, streamID, ID)))
 	}
+	return nil
 }
 
-func (backend *InMemoryBackend) GetLandmark(streamID, windowID int64) []byte {
+func (backend *InMemoryBackend) GetLandmark(streamID, windowID int64) ([]byte, error) {
 	backend.landmarkMapMutex.Lock()
 	defer backend.landmarkMapMutex.Unlock()
-	return backend.landmarkMap[string(GetKey(true, streamID, windowID))]
+	landmarkWindow, exists := backend.landmarkMap[string(GetKey(true, streamID, windowID))]
+	if !exists {
+		return nil, errors.New("landmark window not found")
+	}
+	return landmarkWindow, nil
 }
 
-func (backend *InMemoryBackend) PutLandmark(streamID, windowID int64, buf []byte) {
+func (backend *InMemoryBackend) PutLandmark(streamID, windowID int64, buf []byte) error {
 	backend.landmarkMapMutex.Lock()
 	defer backend.landmarkMapMutex.Unlock()
 	backend.landmarkMap[string(GetKey(true, streamID, windowID))] = buf
+	return nil
 }
 
-func (backend *InMemoryBackend) DeleteLandmark(streamID, windowID int64) {
+func (backend *InMemoryBackend) DeleteLandmark(streamID, windowID int64) error {
 	backend.landmarkMapMutex.Lock()
 	defer backend.landmarkMapMutex.Unlock()
 	delete(backend.landmarkMap, string(GetKey(true, streamID, windowID)))
+	return nil
 }
 
-func (backend *InMemoryBackend) Close() {
+func (backend *InMemoryBackend) Close() error {
 	backend.summaryMap = nil
 	backend.landmarkMap = nil
+	return nil
 }
 
-func (backend *InMemoryBackend) IterateIndex(streamID int64, lambda func(int64), landmark bool) {
+func (backend *InMemoryBackend) IterateIndex(streamID int64, lambda func(int64) error, landmark bool) error {
 	var iterMap map[string][]byte
 	if landmark {
 		iterMap = backend.landmarkMap
@@ -169,42 +184,62 @@ func (backend *InMemoryBackend) IterateIndex(streamID int64, lambda func(int64),
 		if GetStreamIDFromKey(buf) != streamID {
 			continue
 		}
-		lambda(GetWindowIDFromKey(buf))
+		err := lambda(GetWindowIDFromKey(buf))
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
-func (backend *InMemoryBackend) GetHeap(streamID int64) []byte {
-	return backend.heapMap[streamID]
+func (backend *InMemoryBackend) GetHeap(streamID int64) ([]byte, error) {
+	heap, exists := backend.heapMap[streamID]
+	if !exists {
+		return nil, errors.New("heap not found")
+	}
+	return heap, nil
 }
 
-func (backend *InMemoryBackend) PutHeap(streamID int64, heap []byte) {
+func (backend *InMemoryBackend) PutHeap(streamID int64, heap []byte) error {
 	backend.heapMap[streamID] = heap
+	return nil
 }
 
-func (backend *InMemoryBackend) GetMergerIndex(streamID int64) []byte {
-	return backend.mergerIndexMap[streamID]
+func (backend *InMemoryBackend) GetMergerIndex(streamID int64) ([]byte, error) {
+	index, exists := backend.mergerIndexMap[streamID]
+	if !exists {
+		return nil, errors.New("merger index not found")
+	}
+	return index, nil
 }
 
-func (backend *InMemoryBackend) PutMergerIndex(streamID int64, index []byte) {
+func (backend *InMemoryBackend) PutMergerIndex(streamID int64, index []byte) error {
 	backend.mergerIndexMap[streamID] = index
+	return nil
 }
 
 func (backend *InMemoryBackend) PutCountAndTime(
 	streamID int64,
 	compType CompType,
 	count int64,
-	timestamp int64) {
+	timestamp int64) error {
 	backend.countAndTimeMapMutex.Lock()
 	defer backend.countAndTimeMapMutex.Unlock()
 	key := strconv.Itoa(int(streamID)) + strconv.Itoa(int(compType))
 	backend.countAndTimeMap[key] = TwoInt64ToByte128(count, timestamp)
+	return nil
 }
 
 func (backend *InMemoryBackend) GetCountAndTime(
 	streamID int64,
-	compType CompType) (int64, int64) {
+	compType CompType) (int64, int64, error) {
 	backend.countAndTimeMapMutex.Lock()
 	defer backend.countAndTimeMapMutex.Unlock()
 	key := strconv.Itoa(int(streamID)) + strconv.Itoa(int(compType))
-	return Byte128ToTwoInt64(backend.countAndTimeMap[key])
+	buf, exists := backend.countAndTimeMap[key]
+	if !exists {
+		return -1, -1, errors.New("count and timestamp not found")
+	}
+	count, timestamp := Byte128ToTwoInt64(buf)
+	return count, timestamp, nil
 }

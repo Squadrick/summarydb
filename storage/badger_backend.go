@@ -3,7 +3,6 @@ package storage
 import (
 	"encoding/binary"
 	"github.com/dgraph-io/badger/v2"
-	"log"
 	"math"
 )
 
@@ -34,14 +33,11 @@ func NewBadgerBacked(db *badger.DB) *BadgerBackend {
 	return &BadgerBackend{db: db}
 }
 
-func (backend *BadgerBackend) Close() {
-	err := backend.db.Close()
-	if err != nil {
-		log.Fatal(err)
-	}
+func (backend *BadgerBackend) Close() error {
+	return backend.db.Close()
 }
 
-func (backend *BadgerBackend) txnGet(key []byte) []byte {
+func (backend *BadgerBackend) txnGet(key []byte) ([]byte, error) {
 	var windowBytes []byte
 	err := backend.db.View(func(txn *badger.Txn) error {
 		item, err := txn.Get(key)
@@ -51,54 +47,45 @@ func (backend *BadgerBackend) txnGet(key []byte) []byte {
 		windowBytes, err = item.ValueCopy(nil)
 		return err
 	})
-	if err != nil {
-		panic(err)
-	}
-	return windowBytes
+	return windowBytes, err
 }
 
-func (backend *BadgerBackend) txnPut(key, buf []byte) {
+func (backend *BadgerBackend) txnPut(key, buf []byte) error {
 	err := backend.db.Update(func(txn *badger.Txn) error {
 		err := txn.Set(key, buf)
 		return err
 	})
-
-	if err != nil {
-		log.Fatal(err)
-	}
+	return err
 }
 
-func (backend *BadgerBackend) txnDelete(key []byte) {
+func (backend *BadgerBackend) txnDelete(key []byte) error {
 	err := backend.db.Update(func(txn *badger.Txn) error {
 		err := txn.Delete(key)
 		return err
 	})
-
-	if err != nil {
-		log.Fatal(err)
-	}
+	return err
 }
 
-func (backend *BadgerBackend) Get(streamID, windowID int64) []byte {
+func (backend *BadgerBackend) Get(streamID, windowID int64) ([]byte, error) {
 	key := GetKey(false, streamID, windowID)
 	return backend.txnGet(key)
 }
 
-func (backend *BadgerBackend) Put(streamID, windowID int64, buf []byte) {
+func (backend *BadgerBackend) Put(streamID, windowID int64, buf []byte) error {
 	key := GetKey(false, streamID, windowID)
-	backend.txnPut(key, buf)
+	return backend.txnPut(key, buf)
 }
 
-func (backend *BadgerBackend) Delete(streamID, windowID int64) {
+func (backend *BadgerBackend) Delete(streamID, windowID int64) error {
 	key := GetKey(false, streamID, windowID)
-	backend.txnDelete(key)
+	return backend.txnDelete(key)
 }
 
 func (backend *BadgerBackend) Merge(
 	streamID int64,
 	windowID int64,
 	buf []byte,
-	deletedIDs []int64) {
+	deletedIDs []int64) error {
 
 	key := GetKey(false, streamID, windowID)
 	delKeys := make([][]byte, len(deletedIDs))
@@ -121,65 +108,66 @@ func (backend *BadgerBackend) Merge(
 		}
 		return nil
 	})
-
-	if err != nil {
-		log.Fatal(err)
-	}
+	return err
 }
 
-func (backend *BadgerBackend) GetLandmark(streamID, windowID int64) []byte {
+func (backend *BadgerBackend) GetLandmark(streamID, windowID int64) ([]byte, error) {
 	key := GetKey(true, streamID, windowID)
 	return backend.txnGet(key)
 }
 
-func (backend *BadgerBackend) PutLandmark(streamID, windowID int64, buf []byte) {
+func (backend *BadgerBackend) PutLandmark(streamID, windowID int64, buf []byte) error {
 	key := GetKey(true, streamID, windowID)
-	backend.txnPut(key, buf)
+	return backend.txnPut(key, buf)
 }
 
-func (backend *BadgerBackend) DeleteLandmark(streamID, windowID int64) {
+func (backend *BadgerBackend) DeleteLandmark(streamID, windowID int64) error {
 	key := GetKey(true, streamID, windowID)
-	backend.txnDelete(key)
+	return backend.txnDelete(key)
 }
 
-func (backend *BadgerBackend) GetHeap(streamID int64) []byte {
+func (backend *BadgerBackend) GetHeap(streamID int64) ([]byte, error) {
 	key := GetKey(false, streamID, math.MinInt64+HeapOffset)
 	return backend.txnGet(key)
 }
 
-func (backend *BadgerBackend) PutHeap(streamID int64, heap []byte) {
+func (backend *BadgerBackend) PutHeap(streamID int64, heap []byte) error {
 	key := GetKey(false, streamID, math.MinInt64+HeapOffset)
-	backend.txnPut(key, heap)
+	return backend.txnPut(key, heap)
 }
 
-func (backend *BadgerBackend) GetMergerIndex(streamID int64) []byte {
+func (backend *BadgerBackend) GetMergerIndex(streamID int64) ([]byte, error) {
 	key := GetKey(false, streamID, math.MinInt64+MergerIndexOffset)
 	return backend.txnGet(key)
 }
 
-func (backend *BadgerBackend) PutMergerIndex(streamID int64, index []byte) {
+func (backend *BadgerBackend) PutMergerIndex(streamID int64, index []byte) error {
 	key := GetKey(false, streamID, math.MinInt64+MergerIndexOffset)
-	backend.txnPut(key, index)
+	return backend.txnPut(key, index)
 }
 
 func (backend *BadgerBackend) PutCountAndTime(
 	streamID int64,
 	compType CompType,
 	count int64,
-	timestamp int64) {
+	timestamp int64) error {
 	key := GetKey(true, streamID,
 		math.MinInt64+CompTypeOffset+int64(compType))
 	buf := TwoInt64ToByte128(count, timestamp)
-	backend.txnPut(key, buf)
+	return backend.txnPut(key, buf)
 }
 
 func (backend *BadgerBackend) GetCountAndTime(
 	streamID int64,
-	compType CompType) (int64, int64) {
+	compType CompType) (int64, int64, error) {
 	key := GetKey(true, streamID,
 		math.MinInt64+CompTypeOffset+int64(compType))
-	buf := backend.txnGet(key)
-	return Byte128ToTwoInt64(buf)
+	buf, err := backend.txnGet(key)
+	if err != nil {
+		return -1, -1, err
+	}
+	count, timestamp := Byte128ToTwoInt64(buf)
+	return count, timestamp, nil
 }
 
 func GetKeyPrefix(landmark bool, streamID int64) []byte {
@@ -189,10 +177,10 @@ func GetKeyPrefix(landmark bool, streamID int64) []byte {
 	return buf
 }
 
-func (backend *BadgerBackend) IterateIndex(streamID int64, lambda func(int64), landmark bool) {
+func (backend *BadgerBackend) IterateIndex(streamID int64, lambda func(int64) error, landmark bool) error {
 	prefix := GetKeyPrefix(landmark, streamID)
 	iterOpts := badger.IteratorOptions{Prefix: prefix}
-	_ = backend.db.View(func(txn *badger.Txn) error {
+	err := backend.db.View(func(txn *badger.Txn) error {
 		iter := txn.NewIterator(iterOpts)
 		defer iter.Close()
 
@@ -201,9 +189,13 @@ func (backend *BadgerBackend) IterateIndex(streamID int64, lambda func(int64), l
 			windowId := GetWindowIDFromKey(item.Key())
 			// MinInt64 to MinInt64 + Footer is reserved for special entries.
 			if windowId > math.MinInt64+Footer {
-				lambda(GetWindowIDFromKey(item.Key()))
+				err := lambda(GetWindowIDFromKey(item.Key()))
+				if err != nil {
+					return err
+				}
 			}
 		}
 		return nil
 	})
+	return err
 }

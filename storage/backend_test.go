@@ -19,8 +19,9 @@ func testIterateIndex(t *testing.T, backend Backend) {
 		index = make([]int64, 0)
 	}
 
-	lambda := func(windowID int64) {
+	lambda := func(windowID int64) error {
 		index = append(index, windowID)
+		return nil
 	}
 
 	initIndex()
