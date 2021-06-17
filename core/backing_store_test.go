@@ -29,16 +29,20 @@ func GetLandmarkWindow() *LandmarkWindow {
 
 func TestSummaryWindowSerialization(t *testing.T) {
 	window := GetSummaryWindow()
-	buf := SummaryWindowToBytes(window)
-	newWindow := BytesToSummaryWindow(buf)
+	buf, err := SummaryWindowToBytes(window)
+	assert.NoError(t, err)
+	newWindow, err := BytesToSummaryWindow(buf)
+	assert.NoError(t, err)
 
 	assert.Equal(t, window, newWindow)
 }
 
 func TestLandmarkWindowSerialization(t *testing.T) {
 	window := GetLandmarkWindow()
-	buf := LandmarkWindowToBytes(window)
-	newWindow := BytesToLandmarkWindow(buf)
+	buf, err := LandmarkWindowToBytes(window)
+	assert.NoError(t, err)
+	newWindow, err := BytesToLandmarkWindow(buf)
+	assert.NoError(t, err)
 
 	assert.Equal(t, window, newWindow)
 }
@@ -49,11 +53,15 @@ func TestInMemory(t *testing.T) {
 	backend := storage.NewInMemoryBackend()
 	store := NewBackingStore(backend, false)
 
-	store.Put(0, 1, summaryWindow)
-	store.PutLandmark(1, 1, landmarkWindow)
+	err := store.Put(0, 1, summaryWindow)
+	assert.NoError(t, err)
+	err = store.PutLandmark(1, 1, landmarkWindow)
+	assert.NoError(t, err)
 
-	newSummaryWindow := store.Get(0, 1)
-	newLandmarkWindow := store.GetLandmark(1, 1)
+	newSummaryWindow, err := store.Get(0, 1)
+	assert.NoError(t, err)
+	newLandmarkWindow, err := store.GetLandmark(1, 1)
+	assert.NoError(t, err)
 
 	assert.Equal(t, summaryWindow, newSummaryWindow)
 	assert.Equal(t, landmarkWindow, newLandmarkWindow)
@@ -96,10 +104,12 @@ func TestHeap(t *testing.T) {
 		diskHeap := generateHeap(testSize,
 			valueTransform,
 			priorityTransform)
-		store.PutHeap(0, diskHeap)
+		err := store.PutHeap(0, diskHeap)
+		assert.NoError(t, err)
 	}
 	{
-		diskHeap := store.GetHeap(0)
+		diskHeap, err := store.GetHeap(0)
+		assert.NoError(t, err)
 		i := 0
 		for diskHeap.Len() != 0 {
 			heapItem := heap.Pop(diskHeap).(*tree.HeapItem)
@@ -117,7 +127,7 @@ func BenchmarkHeapToBytes(b *testing.B) {
 		newHeap := generateHeap(size, GetIdentity(), GetIdentity())
 		b.Run(strconv.Itoa(size), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				_ = HeapToBytes(newHeap)
+				_, _ = HeapToBytes(newHeap)
 			}
 		})
 	}
@@ -129,10 +139,16 @@ func BenchmarkBytesToHeap(b *testing.B) {
 	for i := 2; i < 6; i += 1 {
 		size := int(math.Pow(10.0, float64(i)))
 		newHeap := generateHeap(size, GetIdentity(), GetIdentity())
-		rawBytes := HeapToBytes(newHeap)
+		rawBytes, err := HeapToBytes(newHeap)
+		if err != nil {
+			b.FailNow()
+		}
 		b.Run(strconv.Itoa(size), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				_ = BytesToHeap(rawBytes)
+				_, err = BytesToHeap(rawBytes)
+				if err != nil {
+					b.FailNow()
+				}
 			}
 		})
 	}
@@ -148,8 +164,14 @@ func BenchmarkHeap(b *testing.B) {
 		newHeap := generateHeap(size, GetIdentity(), GetIdentity())
 		b.Run(strconv.Itoa(size), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				store.PutHeap(0, newHeap)
-				_ = store.GetHeap(0)
+				err := store.PutHeap(0, newHeap)
+				if err != nil {
+					b.FailNow()
+				}
+				_, err = store.GetHeap(0)
+				if err != nil {
+					b.FailNow()
+				}
 			}
 		})
 	}
@@ -157,15 +179,18 @@ func BenchmarkHeap(b *testing.B) {
 
 func TestMergerIndexSerialization(t *testing.T) {
 	var buf []byte
+	var err error
 	{
 		index := NewMergerIndex()
 		for i := 100; i >= 0; i -= 1 {
 			index.Put(int64(i), int64(2*i+1))
 		}
-		buf = MergerIndexToBytes(index)
+		buf, err = MergerIndexToBytes(index)
+		assert.NoError(t, err)
 	}
 	{
-		index := BytesToMergerIndex(buf)
+		index, err := BytesToMergerIndex(buf)
+		assert.NoError(t, err)
 		idx := int64(0)
 		index.indexMap.Map(func(key tree.RbKey, val interface{}) bool {
 			assert.Equal(t, idx, key)
