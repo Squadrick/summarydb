@@ -8,12 +8,15 @@ import (
 
 // NOTE: Tests are in backing_store_test.go
 
-func SummaryWindowToBytes(window *SummaryWindow) []byte {
+func SummaryWindowToBytes(window *SummaryWindow) ([]byte, error) {
 	msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		return nil, err
+	}
 
 	summaryWindowProto, err := protos.NewRootProtoSummaryWindow(seg)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
 	summaryWindowProto.SetTs(window.TimeStart)
@@ -23,7 +26,7 @@ func SummaryWindowToBytes(window *SummaryWindow) []byte {
 
 	dataTableProto, err := summaryWindowProto.NewOpData()
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
 	dataTableProto.SetCount(window.Data.Count.Value)
@@ -32,21 +35,21 @@ func SummaryWindowToBytes(window *SummaryWindow) []byte {
 
 	buf, err := msg.Marshal()
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
-	return buf
+	return buf, nil
 }
 
-func BytesToSummaryWindow(buf []byte) *SummaryWindow {
+func BytesToSummaryWindow(buf []byte) (*SummaryWindow, error) {
 	msg, err := capnp.Unmarshal(buf)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
 	summaryWindowProto, err := protos.ReadRootProtoSummaryWindow(msg)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
 	summaryWindow := NewSummaryWindow(
@@ -56,28 +59,39 @@ func BytesToSummaryWindow(buf []byte) *SummaryWindow {
 		summaryWindowProto.Ce())
 	dataTableProto, err := summaryWindowProto.OpData()
 	if err != nil {
-		return summaryWindow
+		return nil, err
 	}
 
 	summaryWindow.Data.Sum.Value = dataTableProto.Sum()
 	summaryWindow.Data.Count.Value = dataTableProto.Count()
 	summaryWindow.Data.Max.Value = dataTableProto.Max()
-	return summaryWindow
+	return summaryWindow, nil
 }
 
-func LandmarkWindowToBytes(window *LandmarkWindow) []byte {
+func LandmarkWindowToBytes(window *LandmarkWindow) ([]byte, error) {
 	msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		return nil, err
+	}
 
 	landmarkWindowProto, err := protos.NewRootProtoLandmarkWindow(seg)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
 	landmarkWindowProto.SetTs(window.TimeStart)
 	landmarkWindowProto.SetTe(window.TimeEnd)
 
-	timestampsProto, _ := landmarkWindowProto.NewTimestamps(int32(len(window.Landmarks)))
-	valuesProto, _ := landmarkWindowProto.NewValues(int32(len(window.Landmarks)))
+	timestampsProto, err :=
+		landmarkWindowProto.NewTimestamps(int32(len(window.Landmarks)))
+	if err != nil {
+		return nil, err
+	}
+	valuesProto, err :=
+		landmarkWindowProto.NewValues(int32(len(window.Landmarks)))
+	if err != nil {
+		return nil, err
+	}
 
 	for i, landmark := range window.Landmarks {
 		timestampsProto.Set(i, landmark.Timestamp)
@@ -86,83 +100,90 @@ func LandmarkWindowToBytes(window *LandmarkWindow) []byte {
 
 	buf, err := msg.Marshal()
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
-	return buf
+	return buf, nil
 }
 
-func BytesToLandmarkWindow(buf []byte) *LandmarkWindow {
+func BytesToLandmarkWindow(buf []byte) (*LandmarkWindow, error) {
 	msg, err := capnp.Unmarshal(buf)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	landmarkWindowProto, err := protos.ReadRootProtoLandmarkWindow(msg)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
 	landmarkWindow := NewLandmarkWindow(landmarkWindowProto.Ts())
-	timestampsProto, _ := landmarkWindowProto.Timestamps()
-	valuesProto, _ := landmarkWindowProto.Values()
+	timestampsProto, err := landmarkWindowProto.Timestamps()
+	if err != nil {
+		return nil, err
+	}
+	valuesProto, err := landmarkWindowProto.Values()
+	if err != nil {
+		return nil, err
+	}
 
 	for i := 0; i < valuesProto.Len(); i++ {
 		landmarkWindow.Insert(timestampsProto.At(i), valuesProto.At(i))
 	}
 
 	landmarkWindow.Close(landmarkWindowProto.Te())
-	return landmarkWindow
+	return landmarkWindow, nil
 }
 
-func HeapToBytes(heap *tree.MinHeap) []byte {
+func HeapToBytes(heap *tree.MinHeap) ([]byte, error) {
 	msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	heapProto, err := protos.NewRootHeap(seg)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	heapItemsProto, err := heapProto.NewItems(int32(len(*heap)))
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	for i, it := range *heap {
 		heapItemProto, err := protos.NewHeapItem(seg)
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 		heapItemProto.SetValue(it.Value)
 		heapItemProto.SetIndex(int32(it.Index))
 		heapItemProto.SetPriority(int32(it.Priority))
 		err = heapItemsProto.Set(i, heapItemProto)
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 	}
 
 	buf, err := msg.Marshal()
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	return buf
+	return buf, nil
 }
 
-func BytesToHeap(buf []byte) *tree.MinHeap {
+func BytesToHeap(buf []byte) (*tree.MinHeap, error) {
 	msg, err := capnp.Unmarshal(buf)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	heapProto, err := protos.ReadRootHeap(msg)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	heapItemsProto, err := heapProto.Items()
 	if err != nil {
 		panic(err)
+		return nil, err
 	}
 
 	heap := tree.NewMinHeap(heapItemsProto.Len())
@@ -175,32 +196,32 @@ func BytesToHeap(buf []byte) *tree.MinHeap {
 		}
 		*heap = append(*heap, heapItem)
 	}
-	return heap
+	return heap, nil
 }
 
-func MergerIndexToBytes(index *MergerIndex) []byte {
+func MergerIndexToBytes(index *MergerIndex) ([]byte, error) {
 	msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
 
 	indexProto, err := protos.NewRootMergerIndex(seg)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	idx := 0
 	indexItemsProto, err := indexProto.NewItems(int32(index.indexMap.Count()))
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	index.indexMap.Map(func(key tree.RbKey, val interface{}) bool {
 		indexItemProto, err := protos.NewMergerIndexItem(seg)
 		if err != nil {
-			panic(err)
+			return true
 		}
 		indexItemProto.SetSwid(key)
 		indexItemProto.SetCEnd(val.(*MergerIndexItem).cEnd)
 		err = indexItemsProto.Set(idx, indexItemProto)
 		if err != nil {
-			panic(err)
+			return true
 		}
 		idx += 1
 		return false
@@ -208,23 +229,23 @@ func MergerIndexToBytes(index *MergerIndex) []byte {
 
 	buf, err := msg.Marshal()
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	return buf
+	return buf, nil
 }
 
-func BytesToMergerIndex(buf []byte) *MergerIndex {
+func BytesToMergerIndex(buf []byte) (*MergerIndex, error) {
 	msg, err := capnp.Unmarshal(buf)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	indexProto, err := protos.ReadRootMergerIndex(msg)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	indexItemsProto, err := indexProto.Items()
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	mergerIndex := NewMergerIndex()
@@ -232,5 +253,5 @@ func BytesToMergerIndex(buf []byte) *MergerIndex {
 		indexItemProto := indexItemsProto.At(i)
 		mergerIndex.Put(indexItemProto.Swid(), indexItemProto.CEnd())
 	}
-	return mergerIndex
+	return mergerIndex, nil
 }

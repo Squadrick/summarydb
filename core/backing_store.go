@@ -40,15 +40,18 @@ func NewBackingStore(backend storage.Backend, cacheEnabled bool) *BackingStore {
 	}
 }
 
-func (store *BackingStore) Get(streamID, windowID int64) *SummaryWindow {
+func (store *BackingStore) Get(streamID, windowID int64) (*SummaryWindow, error) {
 	if store.cacheEnabled {
 		window, found := store.summaryCache.Get(storage.GetKey(false, streamID, windowID))
 		if found {
-			return window.(*SummaryWindow)
+			return window.(*SummaryWindow), nil
 		}
 	}
-	buf := store.backend.Get(streamID, windowID)
-	return BytesToSummaryWindow(buf)
+	buf, err := store.backend.Get(streamID, windowID)
+	if err != nil {
+		return nil, err
+	}
+	return BytesToSummaryWindow(buf), nil
 }
 
 func (store *BackingStore) Put(streamID, windowID int64, window *SummaryWindow) {
