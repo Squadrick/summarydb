@@ -12,18 +12,23 @@ func TestBasicDB(t *testing.T) {
 	dbPath := "testdb"
 	var streamId int64
 	{
-		db := New(dbPath)
+		db, err := New(dbPath)
+		assert.NoError(t, err)
 		exp := window.NewExponentialLengthsSequence(2)
-		stream := db.NewStream([]string{"count", "sum"}, exp)
+		stream, err := db.NewStream([]string{"count", "sum"}, exp)
+		assert.NoError(t, err)
 		ctx, cancelFunc := context.WithCancel(context.Background())
 		// TODO: Let `db` start the stream, and keep track of the ctxs?
-		stream.Run(ctx)
+		err = stream.Run(ctx)
+		assert.NoError(t, err)
 		streamId = stream.streamId
 		for i := 0; i < 100; i++ {
-			stream.Append(int64(i), float64(i))
+			err := stream.Append(int64(i), float64(i))
+			assert.NoError(t, err)
 		}
 
-		err := db.Close()
+		err = db.Close()
+		assert.NoError(t, err)
 		cancelFunc()
 		assert.Equal(t, err, nil)
 	}
@@ -32,19 +37,24 @@ func TestBasicDB(t *testing.T) {
 			ConfidenceLevel: 0.95,
 			SDMultiplier:    1.0,
 		}
-		db := Open(dbPath)
-		stream := db.GetStream(streamId)
+		db, err := Open(dbPath)
+		assert.NoError(t, err)
+		stream, err := db.GetStream(streamId)
+		assert.NoError(t, err)
 		{
-			result := stream.Query("count", 0, 99, &params)
+			result, err := stream.Query("count", 0, 99, &params)
+			assert.NoError(t, err)
 			assert.Equal(t, result.value.Count.Value, 100.0)
 			assert.Equal(t, result.error, 0.0)
 		}
 		{
-			result := stream.Query("sum", 0, 99, &params)
+			result, err := stream.Query("sum", 0, 99, &params)
+			assert.NoError(t, err)
 			assert.Equal(t, result.value.Sum.Value, 99.0*100/2)
 			assert.Equal(t, result.error, 0.0)
 		}
-		numSummaryWindows := stream.manager.GetSummaryWindowInRange(0, 99)
+		numSummaryWindows, err := stream.manager.GetSummaryWindowInRange(0, 99)
+		assert.NoError(t, err)
 		assert.Equal(t, len(numSummaryWindows), 9)
 	}
 }
@@ -53,44 +63,55 @@ func TestDBWithLambda(t *testing.T) {
 	dbPath := "testdb2"
 	var streamId int64
 	{
-		db := New(dbPath)
+		db, err := New(dbPath)
+		assert.NoError(t, err)
 		exp := window.NewExponentialLengthsSequence(2)
-		stream := db.NewStream([]string{"count", "sum"}, exp)
+		stream, err := db.NewStream([]string{"count", "sum"}, exp)
+		assert.NoError(t, err)
 		ctx, cancelFunc := context.WithCancel(context.Background())
 		// TODO: Let `db` start the stream, and keep track of the ctxs?
-		stream.Run(ctx)
+		err = stream.Run(ctx)
+		assert.NoError(t, err)
 		streamId = stream.streamId
 		for i := 0; i < 100; i++ {
 			if i == 90 {
-				stream.StartLandmark(int64(i))
+				err := stream.StartLandmark(int64(i))
+				assert.NoError(t, err)
 			}
-			stream.Append(int64(i), float64(i))
+			err := stream.Append(int64(i), float64(i))
+			assert.NoError(t, err)
 		}
-		stream.EndLandmark(int64(99))
+		err = stream.EndLandmark(int64(99))
+		assert.NoError(t, err)
 
 		cancelFunc()
-		err := db.Close()
-		assert.Equal(t, err, nil)
+		err = db.Close()
+		assert.NoError(t, err)
 	}
 	{
 		params := QueryParams{
 			ConfidenceLevel: 0.95,
 			SDMultiplier:    1.0,
 		}
-		db := Open(dbPath)
-		stream := db.GetStream(streamId)
+		db, err := Open(dbPath)
+		assert.NoError(t, err)
+		stream, err := db.GetStream(streamId)
+		assert.NoError(t, err)
 		{
-			result := stream.Query("count", 0, 99, &params)
+			result, err := stream.Query("count", 0, 99, &params)
+			assert.NoError(t, err)
 			assert.Equal(t, result.value.Count.Value, 100.0)
 			assert.Equal(t, result.error, 0.0)
 		}
 		{
-			result := stream.Query("sum", 0, 99, &params)
+			result, err := stream.Query("sum", 0, 99, &params)
+			assert.NoError(t, err)
 			assert.Equal(t, result.value.Sum.Value, 99.0*100/2)
 			assert.Equal(t, result.error, 0.0)
 		}
 
-		numSummaryWindows := stream.manager.GetSummaryWindowInRange(0, 99)
+		numSummaryWindows, err := stream.manager.GetSummaryWindowInRange(0, 99)
+		assert.NoError(t, err)
 		assert.Equal(t, len(numSummaryWindows), 10)
 	}
 }
@@ -102,66 +123,81 @@ func TestDBAppendAfterRead(t *testing.T) {
 	dbPath := "testdb3"
 	var streamId int64
 	{
-		db := New(dbPath)
+		db, err := New(dbPath)
+		assert.NoError(t, err)
 		exp := window.NewExponentialLengthsSequence(2)
-		stream := db.NewStream([]string{"count", "sum"}, exp)
+		stream, err := db.NewStream([]string{"count", "sum"}, exp)
+		assert.NoError(t, err)
 		ctx, cancelFunc := context.WithCancel(context.Background())
 		// TODO: Let `db` start the stream, and keep track of the ctxs?
-		stream.Run(ctx)
+		err = stream.Run(ctx)
+		assert.NoError(t, err)
 		streamId = stream.streamId
 		for i := 0; i < 50; i++ {
-			stream.Append(int64(i), float64(i))
+			err := stream.Append(int64(i), float64(i))
+			assert.NoError(t, err)
 		}
 
-		err := db.Close()
+		err = db.Close()
 		cancelFunc()
-		assert.Equal(t, err, nil)
+		assert.NoError(t, err)
 	}
 	{
-		db := Open(dbPath)
-		stream := db.GetStream(streamId)
+		db, err := Open(dbPath)
+		assert.NoError(t, err)
+		stream, err := db.GetStream(streamId)
+		assert.NoError(t, err)
 		params := QueryParams{
 			ConfidenceLevel: 0.95,
 			SDMultiplier:    1.0,
 		}
 		{
-			result := stream.Query("count", 0, 49, &params)
+			result, err := stream.Query("count", 0, 49, &params)
+			assert.NoError(t, err)
 			assert.Equal(t, result.value.Count.Value, 50.0)
 			assert.Equal(t, result.error, 0.0)
 		}
 		{
-			result := stream.Query("sum", 0, 49, &params)
+			result, err := stream.Query("sum", 0, 49, &params)
+			assert.NoError(t, err)
 			assert.Equal(t, result.value.Sum.Value, 49.0*50/2)
 			assert.Equal(t, result.error, 0.0)
 		}
 		ctx, cancelFunc := context.WithCancel(context.Background())
-		stream.Run(ctx)
+		err = stream.Run(ctx)
+		assert.NoError(t, err)
 		for i := 50; i < 100; i++ {
-			stream.Append(int64(i), float64(i))
+			err := stream.Append(int64(i), float64(i))
+			assert.NoError(t, err)
 		}
 
-		err := db.Close()
+		err = db.Close()
 		cancelFunc()
-		assert.Equal(t, err, nil)
+		assert.NoError(t, err)
 	}
 	{
 		params := QueryParams{
 			ConfidenceLevel: 0.95,
 			SDMultiplier:    1.0,
 		}
-		db := Open(dbPath)
-		stream := db.GetStream(streamId)
+		db, err := Open(dbPath)
+		assert.NoError(t, err)
+		stream, err := db.GetStream(streamId)
+		assert.NoError(t, err)
 		{
-			result := stream.Query("count", 0, 99, &params)
+			result, err := stream.Query("count", 0, 99, &params)
+			assert.NoError(t, err)
 			assert.Equal(t, result.value.Count.Value, 100.0)
 			assert.Equal(t, result.error, 0.0)
 		}
 		{
-			result := stream.Query("sum", 0, 99, &params)
+			result, err := stream.Query("sum", 0, 99, &params)
+			assert.NoError(t, err)
 			assert.Equal(t, result.value.Sum.Value, 99.0*100/2)
 			assert.Equal(t, result.error, 0.0)
 		}
-		numSummaryWindows := stream.manager.GetSummaryWindowInRange(0, 99)
+		numSummaryWindows, err := stream.manager.GetSummaryWindowInRange(0, 99)
+		assert.NoError(t, err)
 		assert.Equal(t, len(numSummaryWindows), 9)
 	}
 }
@@ -169,34 +205,49 @@ func TestDBAppendAfterRead(t *testing.T) {
 func BenchmarkDB_Append(b *testing.B) {
 	dbPath := "testdb_bm1"
 	nStreams := 8
-	db := New(dbPath)
+	db, err := New(dbPath)
+	if err != nil {
+		b.FailNow()
+	}
 	wg := sync.WaitGroup{}
 	for s := 0; s < nStreams; s += 1 {
 		wg.Add(1)
 		go func() {
 			exp := window.NewExponentialLengthsSequence(2)
-			stream := db.NewStream([]string{"count", "sum", "max"}, exp)
+			stream, err := db.NewStream([]string{"count", "sum", "max"}, exp)
+			if err != nil {
+				b.FailNow()
+			}
 			ctx, cancelFunc := context.WithCancel(context.Background())
 			defer cancelFunc()
-			stream.Run(ctx)
+			err = stream.Run(ctx)
+			if err != nil {
+				b.FailNow()
+			}
 
 			for i := 0; i < b.N/nStreams; i++ {
-				stream.Append(int64(i), float64(i))
+				err := stream.Append(int64(i), float64(i))
+				if err != nil {
+					b.FailNow()
+				}
 			}
 			wg.Done()
 		}()
 	}
 	wg.Wait()
-	err := db.Close()
+	err = db.Close()
 	if err != nil {
-		panic(err)
+		b.FailNow()
 	}
 }
 
 func BenchmarkDB_Append_Buffered(b *testing.B) {
 	dbPath := "testdb_bm2"
 	nStreams := 8
-	db := New(dbPath)
+	db, err := New(dbPath)
+	if err != nil {
+		b.FailNow()
+	}
 	wg := sync.WaitGroup{}
 	config := StoreConfig{
 		EachBufferSize:  32,
@@ -207,22 +258,34 @@ func BenchmarkDB_Append_Buffered(b *testing.B) {
 		wg.Add(1)
 		go func() {
 			exp := window.NewExponentialLengthsSequence(2)
-			stream := db.NewStream([]string{"count", "sum", "max"}, exp)
+			stream, err := db.NewStream([]string{"count", "sum", "max"}, exp)
+			if err != nil {
+				b.FailNow()
+			}
 			stream.SetConfig(&config)
 			ctx, cancelFunc := context.WithCancel(context.Background())
 			defer cancelFunc()
-			stream.Run(ctx)
+			err = stream.Run(ctx)
+			if err != nil {
+				b.FailNow()
+			}
 
 			for i := 0; i <= b.N/nStreams; i++ {
-				stream.Append(int64(i), float64(i))
+				err := stream.Append(int64(i), float64(i))
+				if err != nil {
+					b.FailNow()
+				}
 			}
-			stream.Flush()
+			err = stream.Flush()
+			if err != nil {
+				b.FailNow()
+			}
 			wg.Done()
 		}()
 	}
 	wg.Wait()
-	err := db.Close()
+	err = db.Close()
 	if err != nil {
-		panic(err)
+		b.FailNow()
 	}
 }

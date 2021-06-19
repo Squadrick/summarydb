@@ -16,6 +16,7 @@
 package window
 
 import (
+	"errors"
 	"math"
 	"summarydb/protos"
 )
@@ -23,22 +24,25 @@ import (
 type LengthsSequence interface {
 	NextWindowLength() int64
 	MaxWindowSize() int64
-	Serialize(window *protos.Stream_window)
-	Deserialize(window *protos.Stream_window)
+	Serialize(window *protos.Stream_window) error
+	Deserialize(window *protos.Stream_window) error
 	Equals(other LengthsSequence) bool
 }
 
-func DeserializeLengthsSequence(window *protos.Stream_window) LengthsSequence {
+func DeserializeLengthsSequence(window *protos.Stream_window) (LengthsSequence, error) {
 	var seq LengthsSequence
 	if window.Which() == protos.Stream_window_Which_exp {
 		seq = NewExponentialLengthsSequence(0)
 	} else if window.Which() == protos.Stream_window_Which_power {
 		seq = NewPowerLengthsSequence(0, 0, 0, 0)
 	} else {
-		panic(seq)
+		return nil, errors.New("unknown length sequence")
 	}
-	seq.Deserialize(window)
-	return seq
+	err := seq.Deserialize(window)
+	if err != nil {
+		return nil, err
+	}
+	return seq, nil
 }
 
 // 1, base, base^2, ..., base^k, ...
@@ -64,22 +68,24 @@ func (seq *ExponentialLengthsSequence) MaxWindowSize() int64 {
 	return math.MaxUint32
 }
 
-func (seq *ExponentialLengthsSequence) Serialize(windowProto *protos.Stream_window) {
+func (seq *ExponentialLengthsSequence) Serialize(windowProto *protos.Stream_window) error {
 	proto, err := windowProto.NewExp()
 	if err != nil {
-		panic(err)
+		return err
 	}
 	//proto.SetNext(seq.next)
 	proto.SetBase(seq.base)
+	return nil
 }
 
-func (seq *ExponentialLengthsSequence) Deserialize(windowProto *protos.Stream_window) {
+func (seq *ExponentialLengthsSequence) Deserialize(windowProto *protos.Stream_window) error {
 	expProto, err := windowProto.Exp()
 	if err != nil {
-		panic(err)
+		return err
 	}
 	//seq.next = expProto.Next()
 	seq.base = expProto.Base()
+	return nil
 }
 
 func (seq *ExponentialLengthsSequence) Equals(other LengthsSequence) bool {
@@ -125,26 +131,28 @@ func (seq *PowerLengthsSequence) MaxWindowSize() int64 {
 	return math.MaxUint32
 }
 
-func (seq *PowerLengthsSequence) Serialize(windowProto *protos.Stream_window) {
+func (seq *PowerLengthsSequence) Serialize(windowProto *protos.Stream_window) error {
 	proto, err := windowProto.NewPower()
 	if err != nil {
-		panic(err)
+		return err
 	}
 	proto.SetP(seq.p)
 	proto.SetQ(seq.q)
 	proto.SetR(seq.R)
 	proto.SetS(seq.S)
+	return nil
 }
 
-func (seq *PowerLengthsSequence) Deserialize(windowProto *protos.Stream_window) {
+func (seq *PowerLengthsSequence) Deserialize(windowProto *protos.Stream_window) error {
 	powerProto, err := windowProto.Power()
 	if err != nil {
-		panic(err)
+		return err
 	}
 	seq.p = powerProto.P()
 	seq.q = powerProto.Q()
 	seq.R = powerProto.R()
 	seq.S = powerProto.S()
+	return nil
 }
 
 func (seq *PowerLengthsSequence) Equals(other LengthsSequence) bool {

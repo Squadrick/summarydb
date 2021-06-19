@@ -1,8 +1,9 @@
 package core
 
 import (
-	capnp "capnproto.org/go/capnp/v3"
+	"capnproto.org/go/capnp/v3"
 	"context"
+	"errors"
 	"summarydb/protos"
 	"summarydb/storage"
 	"summarydb/window"
@@ -46,78 +47,100 @@ func (stream *Stream) SetBackend(backend storage.Backend, cacheEnabled bool) *St
 	return stream
 }
 
-func (stream *Stream) Run(ctx context.Context) {
+func (stream *Stream) Run(ctx context.Context) error {
 	if !stream.backendSet {
-		panic("backend not set")
+		return errors.New("backend not set")
 	}
 	stream.running = true
 	stream.pipeline.Run(ctx)
+	return nil
 }
 
-func (stream *Stream) PrimeUp() {
+func (stream *Stream) PrimeUp() error {
 	if !stream.backendSet {
-		panic("backend not set")
+		return errors.New("backend not set")
 	}
-	stream.manager.PrimeUp()
-	stream.pipeline.PrimeUp()
+	err := stream.manager.PrimeUp()
+	if err != nil {
+		return err
+	}
+	err = stream.pipeline.PrimeUp()
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
-func (stream *Stream) Append(timestamp int64, value float64) {
+func (stream *Stream) Append(timestamp int64, value float64) error {
 	if !stream.backendSet {
 		panic("backend not set")
 	}
 	if !stream.running {
 		panic("stream is not running")
 	}
+	var err error
 	if stream.landmarkWindow != nil {
 		stream.landmarkWindow.Insert(timestamp, value)
+		err = nil
 	} else {
-		stream.pipeline.Append(timestamp, value)
+		err = stream.pipeline.Append(timestamp, value)
 	}
+	return err
 }
 
-func (stream *Stream) StartLandmark(timestamp int64) {
+func (stream *Stream) StartLandmark(timestamp int64) error {
 	if stream.landmarkWindow != nil {
-		panic("already appending as landmarks")
+		return errors.New("already appending as landmarks")
 	}
 	stream.landmarkWindow = NewLandmarkWindow(timestamp)
+	return nil
 }
 
-func (stream *Stream) EndLandmark(timestamp int64) {
+func (stream *Stream) EndLandmark(timestamp int64) error {
 	if stream.landmarkWindow == nil {
-		panic("no running landmark")
+		return errors.New("no running landmark")
 	}
 	stream.landmarkWindow.Close(timestamp)
-	stream.manager.PutLandmarkWindow(stream.landmarkWindow)
+	err := stream.manager.PutLandmarkWindow(stream.landmarkWindow)
 	stream.landmarkWindow = nil
+	return err
 }
 
-func (stream *Stream) Flush() {
-	stream.pipeline.Flush(false)
+func (stream *Stream) Flush() error {
+	return stream.pipeline.Flush(false)
 }
 
-func (stream *Stream) Close() {
-	stream.pipeline.Flush(true)
+func (stream *Stream) Close() error {
+	return stream.pipeline.Flush(true)
 }
 
 func (stream *Stream) Query(
 	op string,
 	startTime int64,
 	endTime int64,
-	params *QueryParams) *AggResult {
+	params *QueryParams) (*AggResult, error) {
 	if !stream.backendSet {
 		panic("backend not set")
 	}
 
 	if stream.running {
 		// sync writes
-		stream.Flush()
+		err := stream.Flush()
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	summaryWindows := stream.pipeline.streamWindowManager.
+	summaryWindows, err := stream.pipeline.streamWindowManager.
 		GetSummaryWindowInRange(startTime, endTime)
-	landmarkWindows := stream.pipeline.streamWindowManager.
+	if err != nil {
+		return nil, err
+	}
+	landmarkWindows, err := stream.pipeline.streamWindowManager.
 		GetLandmarkWindowInRange(startTime, endTime)
+	if err != nil {
+		return nil, err
+	}
 
 	opCompute := stream.manager.operators.GetOp(op)
 
@@ -126,14 +149,17 @@ func (stream *Stream) Query(
 		landmarkWindows,
 		startTime,
 		endTime,
-		params)
+		params), nil
 }
 
-func (stream *Stream) Serialize() []byte {
+func (stream *Stream) Serialize() ([]byte, error) {
 	msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		return nil, err
+	}
 	streamProto, err := protos.NewRootStream(seg)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	// ID
@@ -143,7 +169,7 @@ func (stream *Stream) Serialize() []byte {
 	opSet := stream.manager.operators
 	opProtoList, err := streamProto.NewOperators(int32(len(opSet.ops)))
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	it := 0
 	for _, v := range opSet.ops {
@@ -154,36 +180,43 @@ func (stream *Stream) Serialize() []byte {
 	// Windowing
 	seq := stream.pipeline.windowing.GetSeq()
 	windowProto := streamProto.Window()
-	seq.Serialize(&windowProto)
+	err = seq.Serialize(&windowProto)
+	if err != nil {
+		return nil, err
+	}
 
 	// Marshal
 	buf, err := msg.Marshal()
 	if err != nil {
 		panic(err)
+		return nil, err
 	}
-	return buf
+	return buf, nil
 }
 
-func DeserializeStream(buf []byte) *Stream {
+func DeserializeStream(buf []byte) (*Stream, error) {
 	msg, err := capnp.Unmarshal(buf)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	streamProto, err := protos.ReadRootStream(msg)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	id := streamProto.Id()
 	ops, err := streamProto.Operators()
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	opNames := OpProtosToOpNames(ops)
 
 	windowProto := streamProto.Window()
-	seq := window.DeserializeLengthsSequence(&windowProto)
+	seq, err := window.DeserializeLengthsSequence(&windowProto)
+	if err != nil {
+		return nil, err
+	}
 	windowing := window.NewGenericWindowing(seq)
-	return NewStreamWithId(id, opNames, windowing)
+	return NewStreamWithId(id, opNames, windowing), nil
 }

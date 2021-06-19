@@ -3,6 +3,7 @@ package core
 import (
 	"container/heap"
 	"context"
+	"errors"
 	"fmt"
 	"summarydb/storage"
 	"summarydb/tree"
@@ -75,15 +76,29 @@ func (hm *Merger) SetWindowManager(manager *StreamWindowManager) {
 	hm.streamWindowManager = manager
 }
 
-func (hm *Merger) PrimeUp() {
+func (hm *Merger) PrimeUp() error {
 	if hm.streamWindowManager == nil {
 		panic("cannot prime without window manager")
 	}
-	hm.mergeCounts = hm.streamWindowManager.GetHeap()
-	hm.index = hm.streamWindowManager.GetMergerIndex()
-	hm.index.PopulateFromHeap(hm.mergeCounts)
-	hm.numElements, hm.latestTimeStart =
+	mergeCounts, err := hm.streamWindowManager.GetHeap()
+	if err != nil {
+		return err
+	}
+	index, err := hm.streamWindowManager.GetMergerIndex()
+	if err != nil {
+		return err
+	}
+	index.PopulateFromHeap(mergeCounts)
+	numElements, latestTimeStart, err :=
 		hm.streamWindowManager.GetCountAndTime(storage.Merger)
+	if err != nil {
+		return err
+	}
+	hm.mergeCounts = mergeCounts
+	hm.index = index
+	hm.numElements = numElements
+	hm.latestTimeStart = latestTimeStart
+	return err
 }
 
 // Given consecutive windows w0, w1 which together span the count [c0, c1],
@@ -139,67 +154,74 @@ func (hm *Merger) addPendingMerge(w0 int64, w1 int64) {
 	hm.pendingMerges[w0] = tail
 }
 
-func (hm *Merger) issuePendingMerge(head int64, tail []int64) {
+func (hm *Merger) issuePendingMerge(head int64, tail []int64) error {
 	if tail == nil || len(tail) == 0 {
-		return
+		return nil
 	}
 	// mergeLengthStats.addValue(1 + len(tail))
 	windows := make([]*SummaryWindow, 0, len(tail)+1)
-	windows = append(windows, hm.streamWindowManager.GetSummaryWindow(head))
+	headWindow, err := hm.streamWindowManager.GetSummaryWindow(head)
+	if err != nil {
+		return err
+	}
+	windows = append(windows, headWindow)
 
 	for _, swid := range tail {
-		windows = append(windows, hm.streamWindowManager.GetSummaryWindow(swid))
+		tailWindow, err := hm.streamWindowManager.GetSummaryWindow(swid)
+		if err != nil {
+			return err
+		}
+		windows = append(windows, tailWindow)
 	}
 
 	mergedWindow := hm.streamWindowManager.MergeSummaryWindows(windows)
 
 	// This writes the updated windows to cache/index/disk in a single commit.
-	hm.streamWindowManager.UpdateMergeSummaryWindows(mergedWindow, tail)
+	return hm.streamWindowManager.UpdateMergeSummaryWindows(mergedWindow, tail)
 }
 
-func (hm *Merger) writeHeapToDisk() {
-	if hm.streamWindowManager != nil {
-		hm.streamWindowManager.PutHeap(hm.mergeCounts)
+func (hm *Merger) writeHeapToDisk() error {
+	if hm.streamWindowManager == nil {
+		return errors.New("no stream window manager")
 	}
+	return hm.streamWindowManager.PutHeap(hm.mergeCounts)
 }
 
-func (hm *Merger) writeMergeIndexToDisk() {
-	if hm.streamWindowManager != nil {
-		hm.streamWindowManager.PutMergerIndex(hm.index)
+func (hm *Merger) writeMergeIndexToDisk() error {
+	if hm.streamWindowManager == nil {
+		return errors.New("no stream window manager")
 	}
+	return hm.streamWindowManager.PutMergerIndex(hm.index)
 }
 
-func (hm *Merger) issueAllPendingMerges() {
-	var wg sync.WaitGroup
-
-	// NOTE: This is only safe because `issuePendingMerge()` does not
-	// access the heap or merger index. If that changes in the future,
-	// these two operations cannot be parallelized.
-	wg.Add(2) // heap, index
-	go func() {
-		hm.writeHeapToDisk()
-		wg.Done()
-	}()
-	go func() {
-		hm.writeMergeIndexToDisk()
-		wg.Done()
-	}()
+func (hm *Merger) issueAllPendingMerges() error {
+	err := hm.writeHeapToDisk()
+	if err != nil {
+		return err
+	}
+	err = hm.writeMergeIndexToDisk()
+	if err != nil {
+		return err
+	}
 
 	for head, tail := range hm.pendingMerges {
-		wg.Add(1)
-		go func(h int64, t []int64) {
-			hm.issuePendingMerge(h, t)
-			wg.Done()
-		}(head, tail)
+		err = hm.issuePendingMerge(head, tail)
+		if err != nil {
+			return err
+		}
 	}
-	wg.Wait()
-	hm.streamWindowManager.PutCountAndTime(
+	err = hm.streamWindowManager.PutCountAndTime(
 		storage.Merger,
 		hm.numElements,
 		hm.latestTimeStart)
+	if err != nil {
+		return err
+	}
 
 	// clear pending merges
 	hm.pendingMerges = make(map[int64][]int64)
+
+	return nil
 }
 
 func (hm *Merger) updatePendingMerges() {
@@ -234,7 +256,7 @@ func (hm *Merger) updatePendingMerges() {
 	}
 }
 
-func (hm *Merger) Process(mergeEvent *MergeEvent) {
+func (hm *Merger) Process(mergeEvent *MergeEvent) error {
 	hm.mutex.Lock()
 	defer hm.mutex.Unlock()
 	hm.latestTimeStart = mergeEvent.Id
@@ -250,21 +272,26 @@ func (hm *Merger) Process(mergeEvent *MergeEvent) {
 	hm.index.Put(mergeEvent.Id, hm.numElements-1)
 	hm.updatePendingMerges()
 	if hm.numWindows%hm.windowsPerBatch == 0 {
-		hm.issueAllPendingMerges()
+		return hm.issueAllPendingMerges()
 	}
+	return nil
 }
 
-func (hm *Merger) flush() {
+func (hm *Merger) flush() error {
 	hm.mutex.Lock()
 	defer hm.mutex.Unlock()
-	hm.issueAllPendingMerges()
+	err := hm.issueAllPendingMerges()
 	if hm.barrier != nil {
 		hm.barrier.Notify(MERGER)
 	}
+	return err
 }
 
 func (hm *Merger) PrintSummaryWindows() {
-	windows := hm.streamWindowManager.GetSummaryWindowInRange(0, hm.numElements+1)
+	windows, err := hm.streamWindowManager.GetSummaryWindowInRange(0, hm.numElements+1)
+	if err != nil {
+		fmt.Println(err.Error())
+	}
 	results := make([]int64, 0)
 	for _, win := range windows {
 		results = append(results, int64(win.Data.Count.Value))
@@ -277,13 +304,22 @@ func (hm *Merger) Run(ctx context.Context, inputCh <-chan *MergeEvent) {
 		select {
 		case mergeEvent := <-inputCh:
 			if mergeEvent == ConstShutdownMergeEvent() {
-				hm.flush()
+				err := hm.flush()
+				if err != nil {
+					panic(err)
+				}
 				break
 			} else if mergeEvent == ConstFlushMergeEvent() {
-				hm.flush()
+				err := hm.flush()
+				if err != nil {
+					panic(err)
+				}
 				continue
 			} else {
-				hm.Process(mergeEvent)
+				err := hm.Process(mergeEvent)
+				if err != nil {
+					panic(err)
+				}
 			}
 
 		case <-ctx.Done():

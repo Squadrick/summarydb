@@ -10,9 +10,11 @@ func testStreamSerializeDeserialize(t *testing.T, seq window.LengthsSequence) {
 	windowing := window.NewGenericWindowing(seq)
 	stream := NewStreamWithId(0, []string{"count", "max", "sum"},
 		windowing)
-	bytes := stream.Serialize()
+	bytes, err := stream.Serialize()
+	assert.NoError(t, err)
 
-	newStream := DeserializeStream(bytes)
+	newStream, err := DeserializeStream(bytes)
+	assert.NoError(t, err)
 
 	assert.Equal(t, stream.streamId, newStream.streamId)
 	assert.True(t, stream.pipeline.windowing.GetSeq().Equals(
@@ -39,7 +41,10 @@ func BenchmarkStream_Serialize(b *testing.B) {
 		windowing)
 
 	for n := 0; n < b.N; n++ {
-		_ = stream.Serialize()
+		_, err := stream.Serialize()
+		if err != nil {
+			b.FailNow()
+		}
 	}
 }
 
@@ -50,9 +55,15 @@ func BenchmarkStream_Deserialize(b *testing.B) {
 	stream := NewStreamWithId(0, []string{"count", "max", "sum"},
 		windowing)
 
-	bytes := stream.Serialize()
+	bytes, err := stream.Serialize()
+	if err != nil {
+		b.FailNow()
+	}
 	for n := 0; n < b.N; n++ {
-		_ = DeserializeStream(bytes)
+		_, err := DeserializeStream(bytes)
+		if err != nil {
+			b.FailNow()
+		}
 	}
 }
 
@@ -64,7 +75,13 @@ func BenchmarkStream_SerializeDeserialize(b *testing.B) {
 		windowing)
 
 	for n := 0; n < b.N; n++ {
-		bytes := stream.Serialize()
-		_ = DeserializeStream(bytes)
+		bytes, err := stream.Serialize()
+		if err != nil {
+			b.FailNow()
+		}
+		_, err = DeserializeStream(bytes)
+		if err != nil {
+			b.FailNow()
+		}
 	}
 }

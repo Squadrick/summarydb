@@ -1,7 +1,8 @@
 package core
 
 import (
-	capnp "capnproto.org/go/capnp/v3"
+	"capnproto.org/go/capnp/v3"
+	"errors"
 	"github.com/dgraph-io/badger/v2"
 	"summarydb/protos"
 	"summarydb/storage"
@@ -19,12 +20,12 @@ type DB struct {
 	mu      sync.Mutex
 }
 
-func New(path string) *DB {
+func New(path string) (*DB, error) {
 	badgerOptions := badger.DefaultOptions(path).WithTruncate(true)
 	badgerDb, err := badger.Open(badgerOptions)
 	badgerBackend := storage.NewBadgerBacked(badgerDb)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	db := &DB{
@@ -34,16 +35,22 @@ func New(path string) *DB {
 		mu:      sync.Mutex{},
 	}
 
-	return db
+	return db, nil
 }
 
-func Open(path string) *DB {
-	db := New(path)
-	db.ReadDB()
-	return db
+func Open(path string) (*DB, error) {
+	db, err := New(path)
+	if err != nil {
+		return nil, err
+	}
+	err = db.ReadDB()
+	if err != nil {
+		return nil, err
+	}
+	return db, nil
 }
 
-func (db *DB) NewStream(operatorNames []string, seq window.LengthsSequence) *Stream {
+func (db *DB) NewStream(operatorNames []string, seq window.LengthsSequence) (*Stream, error) {
 	db.mu.Lock()
 	defer db.mu.Unlock()
 	defer atomic.AddInt64(&gStreamIdCounter, 1)
@@ -54,14 +61,24 @@ func (db *DB) NewStream(operatorNames []string, seq window.LengthsSequence) *Str
 	db.streams[streamId] = stream
 
 	// TODO: Make this a single transaction.
-	db.WriteDB()
-	db.WriteStream(stream)
+	err := db.WriteDB()
+	if err != nil {
+		return nil, err
+	}
+	err = db.WriteStream(stream)
+	if err != nil {
+		return nil, err
+	}
 
-	return stream
+	return stream, nil
 }
 
-func (db *DB) GetStream(streamId int64) *Stream {
-	return db.streams[streamId]
+func (db *DB) GetStream(streamId int64) (*Stream, error) {
+	stream, ok := db.streams[streamId]
+	if !ok {
+		return nil, errors.New("stream not found")
+	}
+	return stream, nil
 }
 
 func (db *DB) Close() error {
@@ -69,69 +86,85 @@ func (db *DB) Close() error {
 	//for _, stream := range db.streams {
 	//	stream.Close()
 	//}
-	db.backend.Close()
+	return db.backend.Close()
+}
+
+func (db *DB) WriteStream(stream *Stream) error {
+	buf, err := stream.Serialize()
+	if err != nil {
+		return err
+	}
+	err = db.mds.PutStream(stream.streamId, buf)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
-func (db *DB) WriteStream(stream *Stream) {
-	buf := stream.Serialize()
-	err := db.mds.PutStream(stream.streamId, buf)
+func (db *DB) WriteDB() error {
+	buf, err := db.Serialize()
 	if err != nil {
-		panic(err)
+		return err
 	}
+	err = db.mds.PutDB(buf)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
-func (db *DB) WriteDB() {
-	buf := db.Serialize()
-	err := db.mds.PutDB(buf)
-	if err != nil {
-		panic(err)
-	}
-}
-
-func (db *DB) ReadDB() {
+func (db *DB) ReadDB() error {
 	buf, err := db.mds.GetDB()
 	if err != nil {
-		// for now consider that this is a new
-		// DB being created.
-		return
+		// TODO: for now consider that this is a new DB being created.
+		return nil
 	}
 	msg, err := capnp.Unmarshal(buf)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	dbProto, err := protos.ReadRootDB(msg)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	streamIds, err := dbProto.StreamIds()
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	for i := 0; i < streamIds.Len(); i++ {
 		streamId := streamIds.At(i)
 		streamBuf, err := db.mds.GetStream(streamId)
 		if err != nil {
-			panic(err)
+			return err
 		}
-		stream := DeserializeStream(streamBuf)
+		stream, err := DeserializeStream(streamBuf)
+		if err != nil {
+			return err
+		}
 		db.streams[streamId] = stream
 		stream.SetBackend(db.backend, true)
-		stream.PrimeUp()
+		err = stream.PrimeUp()
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
-func (db *DB) Serialize() []byte {
+func (db *DB) Serialize() ([]byte, error) {
 	msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		return nil, err
+	}
 	dbProto, err := protos.NewRootDB(seg)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	streamIdsProto, err := dbProto.NewStreamIds(int32(len(db.streams)))
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	it := 0
 	for id := range db.streams {
@@ -141,7 +174,7 @@ func (db *DB) Serialize() []byte {
 
 	buf, err := msg.Marshal()
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	return buf
+	return buf, nil
 }

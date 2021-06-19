@@ -81,10 +81,12 @@ func testPipeline_EachStep_Unbuffered(t *testing.T,
 		SetUnbuffered()
 
 	for ti := int64(0); ti < int64(len(expectedEvolution)); ti += 1 {
-		pipeline.Append(ti, 0)
+		err := pipeline.Append(ti, 0)
+		assert.NoError(t, err)
 		expectedAnswer := expectedEvolution[ti]
 		results := make([]int64, 0)
-		summaryWindows := manager.GetSummaryWindowInRange(0, ti)
+		summaryWindows, err := manager.GetSummaryWindowInRange(0, ti)
+		assert.NoError(t, err)
 
 		for _, summaryWindow := range summaryWindows {
 			results = append(results, int64(summaryWindow.Data.Count.Value))
@@ -120,11 +122,14 @@ func testPipeline_EachStep_Buffered(t *testing.T,
 	pipeline.Run(cancelCtx)
 
 	for ti := int64(0); ti < int64(len(expectedEvolution)); ti += 1 {
-		pipeline.Append(ti, 0)
-		pipeline.Flush(false)
+		err := pipeline.Append(ti, 0)
+		assert.NoError(t, err)
+		err = pipeline.Flush(false)
+		assert.NoError(t, err)
 		expectedAnswer := expectedEvolution[ti]
 		results := make([]int64, 0)
-		summaryWindows := manager.GetSummaryWindowInRange(0, ti)
+		summaryWindows, err := manager.GetSummaryWindowInRange(0, ti)
+		assert.NoError(t, err)
 
 		for _, summaryWindow := range summaryWindows {
 			results = append(results, int64(summaryWindow.Data.Count.Value))
@@ -161,13 +166,16 @@ func testPipelineFinalStep(t *testing.T, backend storage.Backend) {
 	pipeline.Run(cancelCtx)
 
 	for ti := int64(0); ti < int64(len(ExpectedEvolutionExp)); ti += 1 {
-		pipeline.Append(ti, 0)
+		err := pipeline.Append(ti, 0)
+		assert.NoError(t, err)
 	}
 
-	pipeline.Flush(true)
+	err := pipeline.Flush(true)
+	assert.NoError(t, err)
 	tl := int64(len(ExpectedEvolutionExp) - 1)
 	results := make([]int64, 0)
-	summaryWindows := manager.GetSummaryWindowInRange(0, tl)
+	summaryWindows, err := manager.GetSummaryWindowInRange(0, tl)
+	assert.NoError(t, err)
 	for _, summaryWindow := range summaryWindows {
 		results = append(results, int64(summaryWindow.Data.Count.Value))
 	}
@@ -215,10 +223,16 @@ func benchmarkPipeline(b *testing.B,
 	pipeline.Run(cancelCtx)
 
 	for n := 0; n < b.N; n++ {
-		pipeline.Append(int64(n), float64(n))
+		err := pipeline.Append(int64(n), float64(n))
+		if err != nil {
+			b.FailNow()
+		}
 	}
 
-	pipeline.Flush(true)
+	err := pipeline.Flush(true)
+	if err != nil {
+		b.FailNow()
+	}
 	cancelFunc()
 }
 

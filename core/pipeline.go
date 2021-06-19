@@ -58,7 +58,7 @@ func (p *Pipeline) Run(ctx context.Context) {
 	go p.merger.Run(ctx, p.mergerQueue)
 }
 
-func (p *Pipeline) Append(timestamp int64, value float64) {
+func (p *Pipeline) Append(timestamp int64, value float64) error {
 	if timestamp < p.lastTimestamp {
 		timestamp = p.lastTimestamp + 1
 	}
@@ -66,28 +66,34 @@ func (p *Pipeline) Append(timestamp int64, value float64) {
 	if p.bufferSize > 0 {
 		p.ingester.Append(timestamp, value)
 	} else {
-		p.appendUnbuffered(timestamp, value)
+		err := p.appendUnbuffered(timestamp, value)
+		if err != nil {
+			return err
+		}
 	}
 	p.numElements += 1
 	p.lastTimestamp = timestamp
-	p.streamWindowManager.PutCountAndTime(
+	return p.streamWindowManager.PutCountAndTime(
 		storage.Pipeline,
 		p.numElements,
 		timestamp)
 }
 
-func (p *Pipeline) appendUnbuffered(timestamp int64, value float64) {
+func (p *Pipeline) appendUnbuffered(timestamp int64, value float64) error {
 	newWindow := NewSummaryWindow(timestamp, timestamp, p.numElements, p.numElements)
 	p.streamWindowManager.InsertIntoSummaryWindow(newWindow, timestamp, value)
-	p.streamWindowManager.PutSummaryWindow(newWindow)
+	err := p.streamWindowManager.PutSummaryWindow(newWindow)
+	if err != nil {
+		return err
+	}
 	info := &MergeEvent{
 		Id:   newWindow.TimeStart,
 		Size: newWindow.CountEnd - newWindow.CountStart + 1,
 	}
-	p.merger.Process(info)
+	return p.merger.Process(info)
 }
 
-func (p *Pipeline) writeRemainingElementsInBuffer() {
+func (p *Pipeline) writeRemainingElementsInBuffer() error {
 	if p.bufferSize > 0 {
 		for {
 			select {
@@ -96,19 +102,23 @@ func (p *Pipeline) writeRemainingElementsInBuffer() {
 					p.numElements -= partialBuffer.Size
 					for i := int64(0); i < partialBuffer.Size; i++ {
 						timestamp, value, _ := partialBuffer.Get(i)
-						p.appendUnbuffered(timestamp, value)
+						err := p.appendUnbuffered(timestamp, value)
+						if err != nil {
+							return err
+						}
 						p.numElements += 1
 					}
 					partialBuffer.Clear()
 				}
 			default:
-				return
+				return nil
 			}
 		}
 	}
+	return nil
 }
 
-func (p *Pipeline) Flush(shutdown bool) {
+func (p *Pipeline) Flush(shutdown bool) error {
 	var summaryWindowSentinel *SummaryWindow
 	var mergeEventSentinel *MergeEvent
 	if shutdown {
@@ -130,8 +140,12 @@ func (p *Pipeline) Flush(shutdown bool) {
 	// synchronously.
 	windowsPerMerge := p.merger.windowsPerBatch
 	p.SetWindowsPerMerge(1)
-	p.writeRemainingElementsInBuffer()
+	err := p.writeRemainingElementsInBuffer()
+	if err != nil {
+		return err
+	}
 	p.SetWindowsPerMerge(windowsPerMerge)
+	return nil
 }
 
 func (p *Pipeline) SetWindowManager(manager *StreamWindowManager) *Pipeline {
@@ -170,16 +184,28 @@ func (p *Pipeline) SetNumBuffers(numBuffers int64) *Pipeline {
 	return p
 }
 
-func (p *Pipeline) PrimeUp() {
+func (p *Pipeline) PrimeUp() error {
 	if p.streamWindowManager == nil {
 		panic("cannot prime without window manager")
 	}
-	p.numElements, p.lastTimestamp =
+	numElements, lastTimestamp, err :=
 		p.streamWindowManager.GetCountAndTime(storage.Pipeline)
-	// TODO: PrimeUp can fail for writer in unbuffered mode, since no count/time
-	// is written.
-	//p.writer.PrimeUp()
-	p.merger.PrimeUp()
+	if err != nil {
+		return err
+	}
+	p.numElements = numElements
+	p.lastTimestamp = lastTimestamp
+
+	err = p.writer.PrimeUp()
+	if err != nil {
+		// PrimeUp can fail for writer in unbuffered mode, since no count/time
+		// is written.
+	}
+	err = p.merger.PrimeUp()
+	if err != nil {
+		return err
+	}
+	return nil
 
 	// Restore here.
 }

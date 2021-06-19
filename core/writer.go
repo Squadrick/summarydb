@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"errors"
 	"summarydb/storage"
 )
 
@@ -27,11 +28,17 @@ func (w *Writer) SetWindowManager(manager *StreamWindowManager) {
 	w.streamWindowManager = manager
 }
 
-func (w *Writer) PrimeUp() {
+func (w *Writer) PrimeUp() error {
 	if w.streamWindowManager == nil {
-		panic("cannot prime without window manager")
+		return errors.New("cannot prime without window manager")
 	}
-	w.numElements, _ = w.streamWindowManager.GetCountAndTime(storage.Writer)
+	numElements, _, err := w.streamWindowManager.GetCountAndTime(storage.Writer)
+	if err != nil {
+		return err
+	}
+	w.numElements = numElements
+	return nil
+
 }
 
 func (w *Writer) flush() {
@@ -40,10 +47,30 @@ func (w *Writer) flush() {
 	}
 }
 
+func (w *Writer) Process(summaryWindow *SummaryWindow) (*MergeEvent, error) {
+	size := summaryWindow.CountEnd - summaryWindow.CountStart + 1
+	w.numElements += size
+	err := w.streamWindowManager.PutSummaryWindow(summaryWindow)
+	if err != nil {
+		return nil, err
+	}
+	err = w.streamWindowManager.PutCountAndTime(
+		storage.Writer,
+		w.numElements,
+		summaryWindow.TimeStart)
+	if err != nil {
+		return nil, err
+	}
+	mergerEvent := &MergeEvent{
+		Id:   summaryWindow.TimeStart,
+		Size: size,
+	}
+	return mergerEvent, nil
+}
+
 func (w *Writer) Run(ctx context.Context, inputCh <-chan *SummaryWindow, outputCh chan<- *MergeEvent) {
 	for {
 		select {
-
 		case summaryWindow := <-inputCh:
 			if summaryWindow == ConstShutdownSummaryWindow() {
 				w.flush()
@@ -52,16 +79,9 @@ func (w *Writer) Run(ctx context.Context, inputCh <-chan *SummaryWindow, outputC
 				w.flush()
 				continue
 			} else {
-				size := summaryWindow.CountEnd - summaryWindow.CountStart + 1
-				w.numElements += size
-				w.streamWindowManager.PutSummaryWindow(summaryWindow)
-				w.streamWindowManager.PutCountAndTime(
-					storage.Writer,
-					w.numElements,
-					summaryWindow.TimeStart)
-				mergerEvent := &MergeEvent{
-					Id:   summaryWindow.TimeStart,
-					Size: size,
+				mergerEvent, err := w.Process(summaryWindow)
+				if err != nil {
+					panic(err)
 				}
 				outputCh <- mergerEvent
 			}
