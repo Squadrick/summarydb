@@ -81,6 +81,22 @@ func (backend *BadgerBackend) Delete(streamID, windowID int64) error {
 	return backend.txnDelete(key)
 }
 
+func mergeTxnFunc(txn *badger.Txn,
+	wKey []byte, wBuf []byte, delKeys [][]byte) error {
+	err := txn.Set(wKey, wBuf)
+	if err != nil {
+		return err
+	}
+
+	for _, delKey := range delKeys {
+		err := txn.Delete(delKey)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (backend *BadgerBackend) Merge(
 	streamID int64,
 	windowID int64,
@@ -95,18 +111,7 @@ func (backend *BadgerBackend) Merge(
 	}
 
 	err := backend.db.Update(func(txn *badger.Txn) error {
-		err := txn.Set(key, buf)
-		if err != nil {
-			return err
-		}
-
-		for _, delKey := range delKeys {
-			err := txn.Delete(delKey)
-			if err != nil {
-				return err
-			}
-		}
-		return nil
+		return mergeTxnFunc(txn, key, buf, delKeys)
 	})
 	return err
 }
@@ -151,7 +156,7 @@ func (backend *BadgerBackend) PutCountAndTime(
 	compType CompType,
 	count int64,
 	timestamp int64) error {
-	key := GetKey(true, streamID,
+	key := GetKey(false, streamID,
 		math.MinInt64+CompTypeOffset+int64(compType))
 	buf := TwoInt64ToByte128(count, timestamp)
 	return backend.txnPut(key, buf)
@@ -160,7 +165,7 @@ func (backend *BadgerBackend) PutCountAndTime(
 func (backend *BadgerBackend) GetCountAndTime(
 	streamID int64,
 	compType CompType) (int64, int64, error) {
-	key := GetKey(true, streamID,
+	key := GetKey(false, streamID,
 		math.MinInt64+CompTypeOffset+int64(compType))
 	buf, err := backend.txnGet(key)
 	if err != nil {
@@ -198,4 +203,61 @@ func (backend *BadgerBackend) IterateIndex(streamID int64, lambda func(int64) er
 		return nil
 	})
 	return err
+}
+
+// --- special brews ---
+
+func (backend *BadgerBackend) WriterBrew(
+	streamID int64, count int64, timestamp int64,
+	windowID int64, window []byte) error {
+	wKey := GetKey(false, streamID, windowID)
+	ctKey := GetKey(false, streamID,
+		math.MinInt64+CompTypeOffset+int64(Writer))
+	ctBuf := TwoInt64ToByte128(count, timestamp)
+	return backend.db.Update(func(txn *badger.Txn) error {
+		err := txn.Set(wKey, window)
+		if err != nil {
+			return err
+		}
+		return txn.Set(ctKey, ctBuf)
+	})
+}
+
+func (backend *BadgerBackend) MergerBrew(
+	streamID int64, count int64, timestamp int64,
+	pendingMerges []*PendingMergeBuffer,
+	heap []byte, index []byte) error {
+	ctKey := GetKey(false, streamID,
+		math.MinInt64+CompTypeOffset+int64(Merger))
+	ctBuf := TwoInt64ToByte128(count, timestamp)
+	mKey := GetKey(false, streamID, math.MinInt64+MergerIndexOffset)
+	hKey := GetKey(false, streamID, math.MinInt64+HeapOffset)
+
+	return backend.db.Update(func(txn *badger.Txn) error {
+		err := txn.Set(ctKey, ctBuf)
+		if err != nil {
+			return err
+		}
+		err = txn.Set(mKey, index)
+		if err != nil {
+			return err
+		}
+		err = txn.Set(hKey, heap)
+		if err != nil {
+			return err
+		}
+
+		for _, pm := range pendingMerges {
+			wKey := GetKey(false, streamID, pm.Id)
+			delKeys := make([][]byte, len(pm.DeletedIDs))
+			for i, ID := range pm.DeletedIDs {
+				delKeys[i] = GetKey(false, streamID, ID)
+			}
+			err := mergeTxnFunc(txn, wKey, pm.MergedWindow, delKeys)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }

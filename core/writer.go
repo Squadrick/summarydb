@@ -50,14 +50,8 @@ func (w *Writer) flush() {
 func (w *Writer) Process(summaryWindow *SummaryWindow) (*MergeEvent, error) {
 	size := summaryWindow.CountEnd - summaryWindow.CountStart + 1
 	w.numElements += size
-	err := w.streamWindowManager.PutSummaryWindow(summaryWindow)
-	if err != nil {
-		return nil, err
-	}
-	err = w.streamWindowManager.PutCountAndTime(
-		storage.Writer,
-		w.numElements,
-		summaryWindow.TimeStart)
+	err := w.streamWindowManager.WriterBrew(
+		w.numElements, summaryWindow.TimeStart, summaryWindow)
 	if err != nil {
 		return nil, err
 	}

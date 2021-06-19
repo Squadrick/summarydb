@@ -79,6 +79,15 @@ type Backend interface {
 	IterateIndex(int64, func(int64) error, bool) error
 
 	Close() error
+
+	// --- special atomic functions ---
+	// See InMemoryBackend for a basic implementation.
+
+	WriterBrew(streamID int64, count int64, timestamp int64,
+		windowID int64, window []byte) error
+	MergerBrew(streamID int64, count int64, timestamp int64,
+		pendingMerges []*PendingMergeBuffer,
+		heap []byte, index []byte) error
 }
 
 type InMemoryBackend struct {
@@ -242,4 +251,36 @@ func (backend *InMemoryBackend) GetCountAndTime(
 	}
 	count, timestamp := Byte128ToTwoInt64(buf)
 	return count, timestamp, nil
+}
+
+func (backend *InMemoryBackend) WriterBrew(
+	streamID int64, count int64, timestamp int64,
+	windowID int64, window []byte) error {
+	err := backend.PutCountAndTime(streamID, Writer, count, timestamp)
+	if err != nil {
+		return err
+	}
+	return backend.Put(streamID, windowID, window)
+}
+
+func (backend *InMemoryBackend) MergerBrew(
+	streamID int64, count int64, timestamp int64,
+	pendingMerges []*PendingMergeBuffer,
+	heap []byte, index []byte) error {
+
+	err := backend.PutCountAndTime(streamID, Merger, count, timestamp)
+	if err != nil {
+		return err
+	}
+	for _, pm := range pendingMerges {
+		err = backend.Merge(streamID, pm.Id, pm.MergedWindow, pm.DeletedIDs)
+	}
+	if err != nil {
+		return err
+	}
+	err = backend.PutHeap(streamID, heap)
+	if err != nil {
+		return err
+	}
+	return backend.PutMergerIndex(streamID, index)
 }

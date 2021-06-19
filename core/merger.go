@@ -154,22 +154,22 @@ func (hm *Merger) addPendingMerge(w0 int64, w1 int64) {
 	hm.pendingMerges[w0] = tail
 }
 
-func (hm *Merger) issuePendingMerge(head int64, tail []int64) error {
+func (hm *Merger) issuePendingMerge(head int64, tail []int64) (*PendingMerge, error) {
 	if tail == nil || len(tail) == 0 {
-		return nil
+		return nil, nil
 	}
 	// mergeLengthStats.addValue(1 + len(tail))
 	windows := make([]*SummaryWindow, 0, len(tail)+1)
 	headWindow, err := hm.streamWindowManager.GetSummaryWindow(head)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	windows = append(windows, headWindow)
 
 	for _, swid := range tail {
 		tailWindow, err := hm.streamWindowManager.GetSummaryWindow(swid)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		windows = append(windows, tailWindow)
 	}
@@ -177,7 +177,10 @@ func (hm *Merger) issuePendingMerge(head int64, tail []int64) error {
 	mergedWindow := hm.streamWindowManager.MergeSummaryWindows(windows)
 
 	// This writes the updated windows to cache/index/disk in a single commit.
-	return hm.streamWindowManager.UpdateMergeSummaryWindows(mergedWindow, tail)
+	return &PendingMerge{
+		MergedWindow: mergedWindow,
+		DeletedIDs:   tail,
+	}, nil
 }
 
 func (hm *Merger) writeHeapToDisk() error {
@@ -195,6 +198,27 @@ func (hm *Merger) writeMergeIndexToDisk() error {
 }
 
 func (hm *Merger) issueAllPendingMerges() error {
+	return hm.issueAllPendingMergesOld()
+}
+
+func (hm *Merger) issueAllPendingMergesNew() error {
+	pendingMerges := make([]*PendingMerge, 0, len(hm.pendingMerges))
+	for head, tail := range hm.pendingMerges {
+		pm, err := hm.issuePendingMerge(head, tail)
+		if err != nil {
+			return err
+		}
+		if pm == nil {
+			continue
+		}
+		pendingMerges = append(pendingMerges, pm)
+	}
+	return hm.streamWindowManager.MergerBrew(
+		hm.numElements, hm.latestTimeStart,
+		pendingMerges, hm.mergeCounts, hm.index)
+}
+
+func (hm *Merger) issueAllPendingMergesOld() error {
 	err := hm.writeHeapToDisk()
 	if err != nil {
 		return err
@@ -204,12 +228,26 @@ func (hm *Merger) issueAllPendingMerges() error {
 		return err
 	}
 
+	pendingMerges := make([]*PendingMerge, 0, len(hm.pendingMerges))
 	for head, tail := range hm.pendingMerges {
-		err = hm.issuePendingMerge(head, tail)
+		pm, err := hm.issuePendingMerge(head, tail)
+		if err != nil {
+			return err
+		}
+		if pm == nil {
+			continue
+		}
+		pendingMerges = append(pendingMerges, pm)
+	}
+
+	for _, pm := range pendingMerges {
+		err := hm.streamWindowManager.UpdateMergeSummaryWindows(
+			pm.MergedWindow, pm.DeletedIDs)
 		if err != nil {
 			return err
 		}
 	}
+
 	err = hm.streamWindowManager.PutCountAndTime(
 		storage.Merger,
 		hm.numElements,

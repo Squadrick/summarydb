@@ -243,7 +243,7 @@ func BenchmarkDB_Append(b *testing.B) {
 
 func BenchmarkDB_Append_Buffered(b *testing.B) {
 	dbPath := "testdb_bm2"
-	nStreams := 8
+	nStreams := 64
 	db, err := New(dbPath)
 	if err != nil {
 		b.FailNow()

@@ -55,6 +55,9 @@ func (store *BackingStore) Get(streamID, windowID int64) (*SummaryWindow, error)
 	if err != nil {
 		return nil, err
 	}
+	if store.cacheEnabled {
+		store.summaryCache.Set(storage.GetKey(false, streamID, windowID), window, 1)
+	}
 	return window, nil
 }
 
@@ -180,4 +183,60 @@ func (store *BackingStore) GetCountAndTime(
 	streamID int64,
 	compType storage.CompType) (int64, int64, error) {
 	return store.backend.GetCountAndTime(streamID, compType)
+}
+
+// --- special brews ---
+
+func (store *BackingStore) WriterBrew(
+	streamID int64, count int64, timestamp int64,
+	windowID int64, window *SummaryWindow) error {
+	if store.cacheEnabled {
+		store.summaryCache.Set(storage.GetKey(false, streamID, windowID), window, 1)
+	}
+	buf, err := SummaryWindowToBytes(window)
+	if err != nil {
+		return err
+	}
+	return store.backend.WriterBrew(streamID, count, timestamp, windowID, buf)
+}
+
+func (store *BackingStore) MergerBrew(
+	streamID int64, count int64, timestamp int64,
+	pendingMerges []*PendingMerge,
+	heap *tree.MinHeap, index *MergerIndex) error {
+
+	if store.cacheEnabled {
+		for _, pm := range pendingMerges {
+			store.summaryCache.Set(
+				storage.GetKey(false, streamID, pm.MergedWindow.Id()),
+				pm.MergedWindow, 1)
+
+			for _, swid := range pm.DeletedIDs {
+				store.summaryCache.Del(storage.GetKey(false, streamID, swid))
+			}
+		}
+	}
+
+	// parallelize serialization?
+	heapBuf, err := HeapToBytes(heap)
+	if err != nil {
+		return err
+	}
+	indexBuf, err := MergerIndexToBytes(index)
+	if err != nil {
+		return err
+	}
+	pendingMergesBuffer := make([]*storage.PendingMergeBuffer, 0, len(pendingMerges))
+	for _, pm := range pendingMerges {
+		buf, err := pm.Serialize()
+		if err != nil {
+			return err
+		}
+		pendingMergesBuffer = append(pendingMergesBuffer, buf)
+	}
+
+	return store.backend.MergerBrew(
+		streamID, count, timestamp,
+		pendingMergesBuffer,
+		heapBuf, indexBuf)
 }

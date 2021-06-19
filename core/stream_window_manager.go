@@ -185,3 +185,29 @@ func (manager *StreamWindowManager) GetCountAndTime(
 	compType storage.CompType) (int64, int64, error) {
 	return manager.backingStore.GetCountAndTime(manager.id, compType)
 }
+
+// --- special brews ---
+
+func (manager *StreamWindowManager) WriterBrew(
+	count int64, timestamp int64, window *SummaryWindow) error {
+	manager.summaryIndex.Add(window.Id())
+	return manager.backingStore.WriterBrew(
+		manager.id, count, timestamp, window.Id(), window)
+}
+
+func (manager *StreamWindowManager) MergerBrew(
+	count int64, timestamp int64,
+	pendingMerges []*PendingMerge,
+	heap *tree.MinHeap, index *MergerIndex) error {
+
+	for _, pm := range pendingMerges {
+		manager.summaryIndex.Add(pm.MergedWindow.Id())
+		for _, swid := range pm.DeletedIDs {
+			manager.summaryIndex.Remove(swid)
+		}
+	}
+
+	return manager.backingStore.MergerBrew(
+		manager.id, count, timestamp,
+		pendingMerges, heap, index)
+}
