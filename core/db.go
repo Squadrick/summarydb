@@ -60,12 +60,7 @@ func (db *DB) NewStream(operatorNames []string, seq window.LengthsSequence) (*St
 		SetBackend(db.backend, true)
 	db.streams[streamId] = stream
 
-	// TODO: Make this a single transaction.
-	err := db.WriteDB()
-	if err != nil {
-		return nil, err
-	}
-	err = db.WriteStream(stream)
+	err := db.WriteDBAndStream(stream)
 	if err != nil {
 		return nil, err
 	}
@@ -89,28 +84,16 @@ func (db *DB) Close() error {
 	return db.backend.Close()
 }
 
-func (db *DB) WriteStream(stream *Stream) error {
-	buf, err := stream.Serialize()
+func (db *DB) WriteDBAndStream(stream *Stream) error {
+	dbBuf, err := db.Serialize()
 	if err != nil {
 		return err
 	}
-	err = db.mds.PutStream(stream.streamId, buf)
+	streamBuf, err := stream.Serialize()
 	if err != nil {
 		return err
 	}
-	return nil
-}
-
-func (db *DB) WriteDB() error {
-	buf, err := db.Serialize()
-	if err != nil {
-		return err
-	}
-	err = db.mds.PutDB(buf)
-	if err != nil {
-		return err
-	}
-	return nil
+	return db.mds.PutDBAndStream(dbBuf, stream.streamId, streamBuf)
 }
 
 func (db *DB) ReadDB() error {

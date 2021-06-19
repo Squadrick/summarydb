@@ -3,10 +3,8 @@ package storage
 import "errors"
 
 type MetadataStore interface {
-	PutDB([]byte) error
+	PutDBAndStream([]byte, int64, []byte) error
 	GetDB() ([]byte, error)
-
-	PutStream(int64, []byte) error
 	GetStream(int64) ([]byte, error)
 }
 
@@ -22,8 +20,10 @@ func NewSimpleMetadataStore() *SimpleMetadataStore {
 	}
 }
 
-func (smm *SimpleMetadataStore) PutDB(db []byte) error {
-	smm.db = db
+func (smm *SimpleMetadataStore) PutDBAndStream(
+	dbBuf []byte, id int64, streamBuf []byte) error {
+	smm.db = dbBuf
+	smm.streams[id] = streamBuf
 	return nil
 }
 
@@ -32,11 +32,6 @@ func (smm *SimpleMetadataStore) GetDB() ([]byte, error) {
 		return nil, errors.New("DB not found")
 	}
 	return smm.db, nil
-}
-
-func (smm *SimpleMetadataStore) PutStream(id int64, buf []byte) error {
-	smm.streams[id] = buf
-	return nil
 }
 
 func (smm *SimpleMetadataStore) GetStream(id int64) ([]byte, error) {

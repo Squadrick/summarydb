@@ -73,6 +73,8 @@ func (p *Pipeline) Append(timestamp int64, value float64) error {
 	}
 	p.numElements += 1
 	p.lastTimestamp = timestamp
+
+	// TODO: This is super slow (3us->10us), use WAL instead.
 	return p.streamWindowManager.PutCountAndTime(
 		storage.Pipeline,
 		p.numElements,

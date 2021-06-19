@@ -15,9 +15,14 @@ func NewBadgerMetadataStore(db *badger.DB) *BadgerMetadataStore {
 	return &BadgerMetadataStore{db: db}
 }
 
-func (bms *BadgerMetadataStore) PutDB(buf []byte) error {
+func (bms *BadgerMetadataStore) PutDBAndStream(
+	dbBuf []byte, streamId int64, streamBuf []byte) error {
 	return bms.db.Update(func(txn *badger.Txn) error {
-		return txn.Set([]byte(DbKey), buf)
+		err := txn.Set([]byte(DbKey), dbBuf)
+		if err != nil {
+			return err
+		}
+		return txn.Set(GetByteKey(streamId), streamBuf)
 	})
 }
 
@@ -38,12 +43,6 @@ func GetByteKey(streamId int64) []byte {
 	key := make([]byte, 8)
 	binary.LittleEndian.PutUint64(key, uint64(streamId))
 	return key
-}
-
-func (bms *BadgerMetadataStore) PutStream(streamId int64, buf []byte) error {
-	return bms.db.Update(func(txn *badger.Txn) error {
-		return txn.Set(GetByteKey(streamId), buf)
-	})
 }
 
 func (bms *BadgerMetadataStore) GetStream(streamId int64) ([]byte, error) {
