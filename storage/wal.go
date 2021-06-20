@@ -865,7 +865,7 @@ func (l *Log) truncateBack(index uint64) (err error) {
 		return err
 	}
 	// The log was truncated but still needs some file cleanup. Any errors
-	// following this message will not cause an on-disk data ocorruption, but
+	// following this message will not cause an on-disk data corruption, but
 	// may cause an inconsistency with the current program, so we'll return
 	// ErrCorrupt so the the user can attempt a recover by calling Close()
 	// followed by Open().
