@@ -43,7 +43,7 @@ func dataStr(index uint64) string {
 
 func testLog(t *testing.T, opts *Options, N int) {
 	logPath := "testlog/" + strings.Join(strings.Split(t.Name(), "/")[1:], "/")
-	l, err := Open(logPath, opts)
+	l, err := OpenLog(logPath, opts)
 	assert.NoError(t, err)
 	defer l.Close()
 
@@ -137,8 +137,8 @@ func testLog(t *testing.T, opts *Options, N int) {
 	err = l.TruncateBack(0)
 	assert.Equal(t, err, ErrClosed)
 
-	// Open -- reopen log
-	l, err = Open(logPath, opts)
+	// OpenLog -- reopen log
+	l, err = OpenLog(logPath, opts)
 	assert.NoError(t, err)
 	defer l.Close()
 
@@ -326,8 +326,8 @@ func testLog(t *testing.T, opts *Options, N int) {
 		t.Fatal(err)
 	}
 
-	// Open -- open log after truncating
-	l, err = Open(logPath, opts)
+	// OpenLog -- open log after truncating
+	l, err = OpenLog(logPath, opts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -433,7 +433,7 @@ func TestOutliers(t *testing.T) {
 	// Create some scenarios where the log has been corrupted, operations
 	// fail, or various weirdnesses.
 	t.Run("fail-in-memory", func(t *testing.T) {
-		if l, err := Open(":memory:", nil); err == nil {
+		if l, err := OpenLog(":memory:", nil); err == nil {
 			l.Close()
 			t.Fatal("expected error")
 		}
@@ -446,7 +446,7 @@ func TestOutliers(t *testing.T) {
 			t.Fatal(err)
 		} else if err := f.Close(); err != nil {
 			t.Fatal(err)
-		} else if l, err := Open("testlog/file", nil); err == nil {
+		} else if l, err := OpenLog("testlog/file", nil); err == nil {
 			l.Close()
 			t.Fatal("expected error")
 		}
@@ -467,7 +467,7 @@ func TestOutliers(t *testing.T) {
 			t.Fatal(err)
 		}
 		f.Close()
-		l, err := Open("testlog/junk", nil)
+		l, err := OpenLog("testlog/junk", nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -481,28 +481,28 @@ func TestOutliers(t *testing.T) {
 		ioutil.WriteFile(
 			"testlog/corrupt-tail/00000000000000000001",
 			[]byte("\n"), 0666)
-		if l, err := Open("testlog/corrupt-tail", opts); err != ErrCorrupt {
+		if l, err := OpenLog("testlog/corrupt-tail", opts); err != ErrCorrupt {
 			l.Close()
 			t.Fatalf("expected %v, got %v", ErrCorrupt, err)
 		}
 		ioutil.WriteFile(
 			"testlog/corrupt-tail/00000000000000000001",
 			[]byte(`{}`+"\n"), 0666)
-		if l, err := Open("testlog/corrupt-tail", opts); err != ErrCorrupt {
+		if l, err := OpenLog("testlog/corrupt-tail", opts); err != ErrCorrupt {
 			l.Close()
 			t.Fatalf("expected %v, got %v", ErrCorrupt, err)
 		}
 		ioutil.WriteFile(
 			"testlog/corrupt-tail/00000000000000000001",
 			[]byte(`{"index":"1"}`+"\n"), 0666)
-		if l, err := Open("testlog/corrupt-tail", opts); err != ErrCorrupt {
+		if l, err := OpenLog("testlog/corrupt-tail", opts); err != ErrCorrupt {
 			l.Close()
 			t.Fatalf("expected %v, got %v", ErrCorrupt, err)
 		}
 		ioutil.WriteFile(
 			"testlog/corrupt-tail/00000000000000000001",
 			[]byte(`{"index":"1","data":"?"}`), 0666)
-		if l, err := Open("testlog/corrupt-tail", opts); err != ErrCorrupt {
+		if l, err := OpenLog("testlog/corrupt-tail", opts); err != ErrCorrupt {
 			l.Close()
 			t.Fatalf("expected %v, got %v", ErrCorrupt, err)
 		}
@@ -511,7 +511,7 @@ func TestOutliers(t *testing.T) {
 	t.Run("start-marker-file", func(t *testing.T) {
 		lpath := "testlog/start-marker"
 		opts := makeOpts(512, true, JSON)
-		l := must(Open(lpath, opts)).(*Log)
+		l := must(OpenLog(lpath, opts)).(*Log)
 		defer l.Close()
 		for i := uint64(1); i <= 100; i++ {
 			must(nil, l.Write(i, []byte(dataStr(i))))
@@ -521,7 +521,7 @@ func TestOutliers(t *testing.T) {
 		must(nil, l.Close())
 		data := must(ioutil.ReadFile(path)).([]byte)
 		must(nil, ioutil.WriteFile(path+".START", data, 0666))
-		l = must(Open(lpath, opts)).(*Log)
+		l = must(OpenLog(lpath, opts)).(*Log)
 		defer l.Close()
 		testFirstLast(t, l, firstIndex, 100, nil)
 
@@ -529,7 +529,7 @@ func TestOutliers(t *testing.T) {
 	// t.Run("end-marker-file", func(t *testing.T) {
 	// 	lpath := "testlog/end-marker"
 	// 	opts := makeOpts(512, true, JSON)
-	// 	l := must(Open(lpath, opts)).(*Log)
+	// 	l := must(OpenLog(lpath, opts)).(*Log)
 	// 	defer l.Close()
 	// 	for i := uint64(1); i <= 100; i++ {
 	// 		must(nil, l.Write(i, []byte(dataStr(i))))
@@ -552,7 +552,7 @@ func TestOutliers(t *testing.T) {
 	// 	must(nil, l.Close())
 	// 	data = must(ioutil.ReadFile(path)).([]byte)
 	// 	must(nil, ioutil.WriteFile(path+".END", data, 0666))
-	// 	l = must(Open(lpath, opts)).(*Log)
+	// 	l = must(OpenLog(lpath, opts)).(*Log)
 	// 	defer l.Close()
 	// 	testFirstLast(t, l, 1, lastIndex)
 	// })
@@ -575,7 +575,7 @@ func TestIssue1(t *testing.T) {
 	opts := *DefaultOptions
 	opts.LogFormat = JSON
 	os.RemoveAll("testlog")
-	l, err := Open("testlog", &opts)
+	l, err := OpenLog("testlog", &opts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -601,7 +601,7 @@ func TestSimpleTruncateFront(t *testing.T) {
 		SegmentSize: 100,
 	}
 
-	l, err := Open("testlog", opts)
+	l, err := OpenLog("testlog", opts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -645,7 +645,7 @@ func TestSimpleTruncateFront(t *testing.T) {
 		if err := l.Close(); err != nil {
 			t.Fatal(err)
 		}
-		l, err = Open("testlog", opts)
+		l, err = OpenLog("testlog", opts)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -700,7 +700,7 @@ func TestSimpleTruncateBack(t *testing.T) {
 		SegmentSize: 100,
 	}
 
-	l, err := Open("testlog", opts)
+	l, err := OpenLog("testlog", opts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -744,7 +744,7 @@ func TestSimpleTruncateBack(t *testing.T) {
 		if err := l.Close(); err != nil {
 			t.Fatal(err)
 		}
-		l, err = Open("testlog", opts)
+		l, err = OpenLog("testlog", opts)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -798,7 +798,7 @@ func TestSimpleTruncateBack(t *testing.T) {
 func TestConcurrency(t *testing.T) {
 	os.RemoveAll("testlog")
 
-	l, err := Open("testlog", &Options{
+	l, err := OpenLog("testlog", &Options{
 		NoSync: true,
 		NoCopy: true,
 	})

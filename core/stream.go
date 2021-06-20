@@ -4,12 +4,15 @@ import (
 	"capnproto.org/go/capnp/v3"
 	"context"
 	"errors"
+	"path"
+	"strconv"
 	"summarydb/protos"
 	"summarydb/storage"
 	"summarydb/window"
 )
 
 type Stream struct {
+	dirName        string
 	streamId       int64
 	pipeline       *Pipeline
 	manager        *StreamWindowManager
@@ -18,12 +21,29 @@ type Stream struct {
 	landmarkWindow *LandmarkWindow
 }
 
+func newWAL(dirName string, id int64) (*storage.Log, error) {
+	if dirName == "" {
+		return nil, nil
+	}
+	walPath := path.Join(dirName, "wal-"+strconv.Itoa(int(id)))
+	walOpts := storage.DefaultOptions
+	walOpts.NoSync = true
+	walOpts.NoCopy = true
+	return storage.OpenLog(walPath, walOpts)
+}
+
 func NewStreamWithId(
+	dirName string,
 	id int64,
 	operatorNames []string,
-	windowing window.Windowing) *Stream {
+	windowing window.Windowing) (*Stream, error) {
 	manager := NewStreamWindowManager(id, operatorNames)
-	pipeline := NewPipeline(windowing)
+	wal, err := newWAL(dirName, id)
+	if err != nil {
+		return nil, err
+	}
+	pipeline := NewPipeline(windowing).SetWAL(wal)
+
 	return &Stream{
 		streamId:       id,
 		pipeline:       pipeline,
@@ -31,7 +51,7 @@ func NewStreamWithId(
 		backendSet:     false,
 		running:        false,
 		landmarkWindow: nil,
-	}
+	}, nil
 }
 
 func (stream *Stream) SetConfig(config *StoreConfig) *Stream {
@@ -194,7 +214,7 @@ func (stream *Stream) Serialize() ([]byte, error) {
 	return buf, nil
 }
 
-func DeserializeStream(buf []byte) (*Stream, error) {
+func DeserializeStream(dirName string, buf []byte) (*Stream, error) {
 	msg, err := capnp.Unmarshal(buf)
 	if err != nil {
 		return nil, err
@@ -218,5 +238,5 @@ func DeserializeStream(buf []byte) (*Stream, error) {
 		return nil, err
 	}
 	windowing := window.NewGenericWindowing(seq)
-	return NewStreamWithId(id, opNames, windowing), nil
+	return NewStreamWithId(dirName, id, opNames, windowing)
 }

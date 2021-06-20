@@ -4,6 +4,8 @@ import (
 	"capnproto.org/go/capnp/v3"
 	"errors"
 	"github.com/dgraph-io/badger/v2"
+	"os"
+	"path"
 	"summarydb/protos"
 	"summarydb/storage"
 	"summarydb/window"
@@ -14,14 +16,20 @@ import (
 var gStreamIdCounter int64 = 0
 
 type DB struct {
+	dirName string
 	backend storage.Backend
 	mds     storage.MetadataStore
 	streams map[int64]*Stream
 	mu      sync.Mutex
 }
 
-func New(path string) (*DB, error) {
-	badgerOptions := badger.DefaultOptions(path).WithTruncate(true)
+func New(dirName string) (*DB, error) {
+	err := os.MkdirAll(dirName, 0777)
+	if err != nil {
+		return nil, err
+	}
+	dbPath := path.Join(dirName, "badger")
+	badgerOptions := badger.DefaultOptions(dbPath).WithTruncate(true)
 	badgerDb, err := badger.Open(badgerOptions)
 	badgerBackend := storage.NewBadgerBacked(badgerDb)
 	if err != nil {
@@ -29,6 +37,7 @@ func New(path string) (*DB, error) {
 	}
 
 	db := &DB{
+		dirName: dirName,
 		backend: badgerBackend,
 		mds:     storage.NewBadgerMetadataStore(badgerDb),
 		streams: make(map[int64]*Stream),
@@ -56,11 +65,14 @@ func (db *DB) NewStream(operatorNames []string, seq window.LengthsSequence) (*St
 	defer atomic.AddInt64(&gStreamIdCounter, 1)
 	streamId := gStreamIdCounter
 	windowing := window.NewGenericWindowing(seq)
-	stream := NewStreamWithId(streamId, operatorNames, windowing).
-		SetBackend(db.backend, true)
+	stream, err := NewStreamWithId(db.dirName, streamId, operatorNames, windowing)
+	if err != nil {
+		return nil, err
+	}
+	stream.SetBackend(db.backend, true)
 	db.streams[streamId] = stream
 
-	err := db.WriteDBAndStream(stream)
+	err = db.WriteDBAndStream(stream)
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +133,7 @@ func (db *DB) ReadDB() error {
 		if err != nil {
 			return err
 		}
-		stream, err := DeserializeStream(streamBuf)
+		stream, err := DeserializeStream(db.dirName, streamBuf)
 		if err != nil {
 			return err
 		}

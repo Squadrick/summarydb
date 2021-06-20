@@ -1,22 +1,28 @@
 package core
 
 import (
+	"bytes"
 	"context"
+	"encoding/binary"
+	"math/rand"
 	"summarydb/storage"
 	"summarydb/window"
 	"sync/atomic"
+	"time"
 )
 
 const QueueSize = 100
 
 type Pipeline struct {
 	streamWindowManager *StreamWindowManager
-	ingester            *Ingester
-	summarizer          *Summarizer
-	writer              *Writer
-	merger              *Merger
-	barrier             *Barrier
-	windowing           window.Windowing
+	wal                 *storage.Log
+
+	ingester   *Ingester
+	summarizer *Summarizer
+	writer     *Writer
+	merger     *Merger
+	barrier    *Barrier
+	windowing  window.Windowing
 
 	bufferSize    int64
 	numElements   int64
@@ -57,6 +63,7 @@ func (p *Pipeline) Run(ctx context.Context) {
 	go p.summarizer.Run(ctx, p.summarizerQueue, p.writerQueue, p.partialBuffers)
 	go p.writer.Run(ctx, p.writerQueue, p.mergerQueue)
 	go p.merger.Run(ctx, p.mergerQueue)
+	go p.flushWAL(ctx)
 }
 
 func (p *Pipeline) Append(timestamp int64, value float64) error {
@@ -72,13 +79,19 @@ func (p *Pipeline) Append(timestamp int64, value float64) error {
 			return err
 		}
 	}
+	return p.appendWAL(timestamp, value)
+}
+
+func (p *Pipeline) appendWAL(timestamp int64, value float64) error {
 	atomic.AddInt64(&p.numElements, 1)
 	atomic.StoreInt64(&p.lastTimestamp, timestamp)
-	// TODO: This is super slow (3us->10us), use WAL instead.
-	return p.streamWindowManager.PutCountAndTime(
-		storage.Pipeline,
-		p.numElements,
-		timestamp)
+	if p.wal != nil {
+		var buf bytes.Buffer
+		_ = binary.Write(&buf, binary.LittleEndian, timestamp)
+		_ = binary.Write(&buf, binary.LittleEndian, value)
+		return p.wal.Write(uint64(p.numElements), buf.Bytes())
+	}
+	return nil
 }
 
 func (p *Pipeline) appendUnbuffered(timestamp int64, value float64) error {
@@ -108,7 +121,10 @@ func (p *Pipeline) writeRemainingElementsInBuffer() error {
 						if err != nil {
 							return err
 						}
-						p.numElements += 1
+						err = p.appendWAL(timestamp, value)
+						if err != nil {
+							return err
+						}
 					}
 					partialBuffer.Clear()
 				}
@@ -118,6 +134,19 @@ func (p *Pipeline) writeRemainingElementsInBuffer() error {
 		}
 	}
 	return nil
+}
+
+func (p *Pipeline) flushWAL(ctx context.Context) {
+	randomDelay := time.NewTicker(time.Duration(rand.Int31n(1000)+1) * time.Millisecond)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-randomDelay.C:
+			_ = p.wal.Sync()
+			randomDelay = time.NewTicker(time.Duration(rand.Int31n(10000)) * time.Millisecond)
+		}
+	}
 }
 
 func (p *Pipeline) Flush(shutdown bool) error {
@@ -147,7 +176,18 @@ func (p *Pipeline) Flush(shutdown bool) error {
 		return err
 	}
 	p.SetWindowsPerMerge(windowsPerMerge)
+	if p.wal != nil {
+		err = p.wal.Sync()
+		if err != nil {
+			return err
+		}
+	}
 	return nil
+}
+
+func (p *Pipeline) SetWAL(wal *storage.Log) *Pipeline {
+	p.wal = wal
+	return p
 }
 
 func (p *Pipeline) SetWindowManager(manager *StreamWindowManager) *Pipeline {
@@ -190,22 +230,29 @@ func (p *Pipeline) PrimeUp() error {
 	if p.streamWindowManager == nil {
 		panic("cannot prime without window manager")
 	}
-	numElements, lastTimestamp, err :=
-		p.streamWindowManager.GetCountAndTime(storage.Pipeline)
-	if err != nil {
-		return err
+	{
+		numElements, err := p.wal.LastIndex()
+		if err != nil {
+			return err
+		}
+		buf, err := p.wal.Read(numElements)
+		if err != nil {
+			return err
+		}
+		bytesBuf := bytes.NewBuffer(buf)
+		var timestamp int64
+		_ = binary.Read(bytesBuf, binary.LittleEndian, &timestamp)
+		p.numElements = int64(numElements)
+		p.lastTimestamp = timestamp
 	}
-	p.numElements = numElements
-	p.lastTimestamp = lastTimestamp
 
-	err = p.writer.PrimeUp()
-	if err != nil {
-		// PrimeUp can fail for writer in unbuffered mode, since no count/time
-		// is written.
-	}
-	err = p.merger.PrimeUp()
-	if err != nil {
-		return err
+	{
+		_ = p.writer.PrimeUp() // PrimeUp can fail for writer in unbuffered mode,
+		// since no count/time is written.
+		err := p.merger.PrimeUp()
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 

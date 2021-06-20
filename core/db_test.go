@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"github.com/stretchr/testify/assert"
+	"os"
 	"summarydb/window"
 	"sync"
 	"testing"
@@ -12,6 +13,8 @@ func TestBasicDB(t *testing.T) {
 	dbPath := "testdb"
 	var streamId int64
 	{
+		err := os.RemoveAll(dbPath)
+		assert.NoError(t, err)
 		db, err := New(dbPath)
 		assert.NoError(t, err)
 		exp := window.NewExponentialLengthsSequence(2)
@@ -63,6 +66,8 @@ func TestDBWithLambda(t *testing.T) {
 	dbPath := "testdb2"
 	var streamId int64
 	{
+		err := os.RemoveAll(dbPath)
+		assert.NoError(t, err)
 		db, err := New(dbPath)
 		assert.NoError(t, err)
 		exp := window.NewExponentialLengthsSequence(2)
@@ -123,6 +128,8 @@ func TestDBAppendAfterRead(t *testing.T) {
 	dbPath := "testdb3"
 	var streamId int64
 	{
+		err := os.RemoveAll(dbPath)
+		assert.NoError(t, err)
 		db, err := New(dbPath)
 		assert.NoError(t, err)
 		exp := window.NewExponentialLengthsSequence(2)
@@ -205,6 +212,7 @@ func TestDBAppendAfterRead(t *testing.T) {
 func BenchmarkDB_Append(b *testing.B) {
 	dbPath := "testdb_bm1"
 	nStreams := 8
+	_ = os.RemoveAll(dbPath)
 	db, err := New(dbPath)
 	if err != nil {
 		b.FailNow()
@@ -244,6 +252,7 @@ func BenchmarkDB_Append(b *testing.B) {
 func BenchmarkDB_Append_Buffered(b *testing.B) {
 	dbPath := "testdb_bm2"
 	nStreams := 64
+	_ = os.RemoveAll(dbPath)
 	db, err := New(dbPath)
 	if err != nil {
 		b.FailNow()

@@ -139,7 +139,7 @@ type bpos struct {
 }
 
 // Open a new write ahead log
-func Open(path string, opts *Options) (*Log, error) {
+func OpenLog(path string, opts *Options) (*Log, error) {
 	if opts == nil {
 		opts = DefaultOptions
 	}
