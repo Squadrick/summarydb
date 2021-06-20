@@ -198,7 +198,7 @@ func (hm *Merger) writeMergeIndexToDisk() error {
 }
 
 func (hm *Merger) issueAllPendingMerges() error {
-	return hm.issueAllPendingMergesOld()
+	return hm.issueAllPendingMergesNew()
 }
 
 func (hm *Merger) issueAllPendingMergesNew() error {
@@ -213,9 +213,16 @@ func (hm *Merger) issueAllPendingMergesNew() error {
 		}
 		pendingMerges = append(pendingMerges, pm)
 	}
-	return hm.streamWindowManager.MergerBrew(
+	err := hm.streamWindowManager.MergerBrew(
 		hm.numElements, hm.latestTimeStart,
 		pendingMerges, hm.mergeCounts, hm.index)
+	if err != nil {
+		return err
+	}
+
+	// clear pending merges
+	hm.pendingMerges = make(map[int64][]int64)
+	return nil
 }
 
 func (hm *Merger) issueAllPendingMergesOld() error {
