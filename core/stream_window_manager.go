@@ -102,21 +102,6 @@ func (manager *StreamWindowManager) DeleteSummaryWindow(swid int64) error {
 	return manager.backingStore.Delete(manager.id, swid)
 }
 
-// insert `mergedWindow` and delete all `deletedWindowIDs`.
-func (manager *StreamWindowManager) UpdateMergeSummaryWindows(
-	mergedWindow *SummaryWindow,
-	deletedWindowIDs []int64) error {
-	manager.summaryIndex.Add(mergedWindow.Id())
-	for _, swid := range deletedWindowIDs {
-		manager.summaryIndex.Remove(swid)
-	}
-
-	return manager.backingStore.MergeWindows(
-		manager.id,
-		mergedWindow,
-		deletedWindowIDs)
-}
-
 func (manager *StreamWindowManager) NumSummaryWindows() int {
 	return manager.summaryIndex.GetNumberWindows()
 }
@@ -158,16 +143,8 @@ func (manager *StreamWindowManager) NumLandmarkWindows() int {
 	return manager.landmarkIndex.GetNumberWindows()
 }
 
-func (manager *StreamWindowManager) PutHeap(heap *tree.MinHeap) error {
-	return manager.backingStore.PutHeap(manager.id, heap)
-}
-
 func (manager *StreamWindowManager) GetHeap() (*tree.MinHeap, error) {
 	return manager.backingStore.GetHeap(manager.id)
-}
-
-func (manager *StreamWindowManager) PutMergerIndex(index *MergerIndex) error {
-	return manager.backingStore.PutMergerIndex(manager.id, index)
 }
 
 func (manager *StreamWindowManager) GetMergerIndex() (*MergerIndex, error) {

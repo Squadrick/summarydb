@@ -3,7 +3,6 @@ package core
 import (
 	"container/heap"
 	"context"
-	"errors"
 	"fmt"
 	"summarydb/storage"
 	"summarydb/tree"
@@ -183,25 +182,7 @@ func (hm *Merger) issuePendingMerge(head int64, tail []int64) (*PendingMerge, er
 	}, nil
 }
 
-func (hm *Merger) writeHeapToDisk() error {
-	if hm.streamWindowManager == nil {
-		return errors.New("no stream window manager")
-	}
-	return hm.streamWindowManager.PutHeap(hm.mergeCounts)
-}
-
-func (hm *Merger) writeMergeIndexToDisk() error {
-	if hm.streamWindowManager == nil {
-		return errors.New("no stream window manager")
-	}
-	return hm.streamWindowManager.PutMergerIndex(hm.index)
-}
-
 func (hm *Merger) issueAllPendingMerges() error {
-	return hm.issueAllPendingMergesNew()
-}
-
-func (hm *Merger) issueAllPendingMergesNew() error {
 	pendingMerges := make([]*PendingMerge, 0, len(hm.pendingMerges))
 	for head, tail := range hm.pendingMerges {
 		pm, err := hm.issuePendingMerge(head, tail)
@@ -222,50 +203,6 @@ func (hm *Merger) issueAllPendingMergesNew() error {
 
 	// clear pending merges
 	hm.pendingMerges = make(map[int64][]int64)
-	return nil
-}
-
-func (hm *Merger) issueAllPendingMergesOld() error {
-	err := hm.writeHeapToDisk()
-	if err != nil {
-		return err
-	}
-	err = hm.writeMergeIndexToDisk()
-	if err != nil {
-		return err
-	}
-
-	pendingMerges := make([]*PendingMerge, 0, len(hm.pendingMerges))
-	for head, tail := range hm.pendingMerges {
-		pm, err := hm.issuePendingMerge(head, tail)
-		if err != nil {
-			return err
-		}
-		if pm == nil {
-			continue
-		}
-		pendingMerges = append(pendingMerges, pm)
-	}
-
-	for _, pm := range pendingMerges {
-		err := hm.streamWindowManager.UpdateMergeSummaryWindows(
-			pm.MergedWindow, pm.DeletedIDs)
-		if err != nil {
-			return err
-		}
-	}
-
-	err = hm.streamWindowManager.PutCountAndTime(
-		storage.Merger,
-		hm.numElements,
-		hm.latestTimeStart)
-	if err != nil {
-		return err
-	}
-
-	// clear pending merges
-	hm.pendingMerges = make(map[int64][]int64)
-
 	return nil
 }
 
