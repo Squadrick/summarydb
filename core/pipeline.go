@@ -4,6 +4,7 @@ import (
 	"context"
 	"summarydb/storage"
 	"summarydb/window"
+	"sync/atomic"
 )
 
 const QueueSize = 100
@@ -71,9 +72,8 @@ func (p *Pipeline) Append(timestamp int64, value float64) error {
 			return err
 		}
 	}
-	p.numElements += 1
-	p.lastTimestamp = timestamp
-
+	atomic.AddInt64(&p.numElements, 1)
+	atomic.StoreInt64(&p.lastTimestamp, timestamp)
 	// TODO: This is super slow (3us->10us), use WAL instead.
 	return p.streamWindowManager.PutCountAndTime(
 		storage.Pipeline,
