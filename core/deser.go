@@ -182,7 +182,6 @@ func BytesToHeap(buf []byte) (*tree.MinHeap, error) {
 	}
 	heapItemsProto, err := heapProto.Items()
 	if err != nil {
-		panic(err)
 		return nil, err
 	}
 

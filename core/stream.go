@@ -88,6 +88,10 @@ func (stream *Stream) PrimeUp() error {
 	if err != nil {
 		return err
 	}
+	err = stream.pipeline.Restore()
+	if err != nil {
+		return err
+	}
 	return nil
 }
 

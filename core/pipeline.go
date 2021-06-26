@@ -63,7 +63,7 @@ func (p *Pipeline) Run(ctx context.Context) {
 	go p.summarizer.Run(ctx, p.summarizerQueue, p.writerQueue, p.partialBuffers)
 	go p.writer.Run(ctx, p.writerQueue, p.mergerQueue)
 	go p.merger.Run(ctx, p.mergerQueue)
-	go p.flushWAL(ctx)
+	//go p.flushWAL(ctx)
 }
 
 func (p *Pipeline) Append(timestamp int64, value float64) error {
@@ -89,7 +89,11 @@ func (p *Pipeline) appendWAL(timestamp int64, value float64) error {
 		var buf bytes.Buffer
 		_ = binary.Write(&buf, binary.LittleEndian, timestamp)
 		_ = binary.Write(&buf, binary.LittleEndian, value)
-		return p.wal.Write(uint64(p.numElements), buf.Bytes())
+		err := p.wal.Write(uint64(p.numElements), buf.Bytes())
+		if err != nil {
+			return err
+		}
+		return p.wal.Sync()
 	}
 	return nil
 }
@@ -226,6 +230,19 @@ func (p *Pipeline) SetNumBuffers(numBuffers int64) *Pipeline {
 	return p
 }
 
+func (p *Pipeline) ReadEntryFromWAL(idx uint64) (int64, float64, error) {
+	var timestamp int64
+	var value float64
+	buf, err := p.wal.Read(idx)
+	if err != nil {
+		return 0, 0, err
+	}
+	bytesBuf := bytes.NewBuffer(buf)
+	_ = binary.Read(bytesBuf, binary.LittleEndian, &timestamp)
+	_ = binary.Read(bytesBuf, binary.LittleEndian, &value)
+	return timestamp, value, nil
+}
+
 func (p *Pipeline) PrimeUp() error {
 	if p.streamWindowManager == nil {
 		panic("cannot prime without window manager")
@@ -235,18 +252,14 @@ func (p *Pipeline) PrimeUp() error {
 		if err != nil {
 			return err
 		}
-		buf, err := p.wal.Read(numElements)
-		if err != nil {
-			return err
-		}
-		bytesBuf := bytes.NewBuffer(buf)
-		var timestamp int64
-		_ = binary.Read(bytesBuf, binary.LittleEndian, &timestamp)
+		timestamp, _, err := p.ReadEntryFromWAL(numElements)
 		p.numElements = int64(numElements)
 		p.lastTimestamp = timestamp
+		p.summarizer.numElements = p.numElements
 	}
 
 	{
+		// TODO: Move this error ignore this writer.PrimeUp()
 		_ = p.writer.PrimeUp() // PrimeUp can fail for writer in unbuffered mode,
 		// since no count/time is written.
 		err := p.merger.PrimeUp()
@@ -255,6 +268,48 @@ func (p *Pipeline) PrimeUp() error {
 		}
 	}
 	return nil
+}
 
-	// Restore here.
+func (p *Pipeline) Restore() error {
+	if p.wal == nil {
+		panic("cannot restore without wal")
+	}
+	mergerNum := p.merger.numElements
+	writerNum := p.writer.numElements
+	appendNum := p.numElements
+	if writerNum == 0 {
+		writerNum = appendNum
+	}
+
+	for n := mergerNum; n < writerNum; n++ {
+		t, _, err := p.ReadEntryFromWAL(uint64(n))
+		if err != nil {
+			return err
+		}
+		summaryWindow, err := p.streamWindowManager.GetSummaryWindow(t)
+		if err != nil {
+			return err
+		}
+		size := summaryWindow.CountStart - summaryWindow.CountStart + 1
+		mergerEvent := &MergeEvent{
+			Id:   summaryWindow.TimeStart,
+			Size: size,
+		}
+		err = p.merger.Process(mergerEvent)
+		if err != nil {
+			return err
+		}
+	}
+
+	for n := writerNum; n < appendNum; n++ {
+		t, v, err := p.ReadEntryFromWAL(uint64(n))
+		if err != nil {
+			return err
+		}
+		err = p.appendUnbuffered(t, v)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

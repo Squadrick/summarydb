@@ -14,6 +14,7 @@ type Writer struct {
 	streamWindowManager *StreamWindowManager
 	barrier             *Barrier
 	numElements         int64
+	latestTimeStart     int64
 }
 
 func NewWriter(barrier *Barrier) *Writer {
@@ -21,6 +22,7 @@ func NewWriter(barrier *Barrier) *Writer {
 		streamWindowManager: nil,
 		barrier:             barrier,
 		numElements:         0,
+		latestTimeStart:     0,
 	}
 }
 
@@ -32,11 +34,12 @@ func (w *Writer) PrimeUp() error {
 	if w.streamWindowManager == nil {
 		return errors.New("cannot prime without window manager")
 	}
-	numElements, _, err := w.streamWindowManager.GetCountAndTime(storage.Writer)
+	numElements, ts, err := w.streamWindowManager.GetCountAndTime(storage.Writer)
 	if err != nil {
 		return err
 	}
 	w.numElements = numElements
+	w.latestTimeStart = ts
 	return nil
 
 }
@@ -50,6 +53,7 @@ func (w *Writer) flush() {
 func (w *Writer) Process(summaryWindow *SummaryWindow) (*MergeEvent, error) {
 	size := summaryWindow.CountEnd - summaryWindow.CountStart + 1
 	w.numElements += size
+	w.latestTimeStart = summaryWindow.TimeStart
 	err := w.streamWindowManager.WriterBrew(
 		w.numElements, summaryWindow.TimeStart, summaryWindow)
 	if err != nil {
