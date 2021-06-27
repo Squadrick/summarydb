@@ -135,7 +135,11 @@ func (stream *Stream) Flush() error {
 }
 
 func (stream *Stream) Close() error {
-	return stream.pipeline.Flush(true)
+	err := stream.pipeline.wal.Close()
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (stream *Stream) Query(

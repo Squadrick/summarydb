@@ -10,17 +10,15 @@ import (
 	"summarydb/storage"
 	"summarydb/window"
 	"sync"
-	"sync/atomic"
 )
 
-var gStreamIdCounter int64 = 0
-
 type DB struct {
-	dirName string
-	backend storage.Backend
-	mds     storage.MetadataStore
-	streams map[int64]*Stream
-	mu      sync.Mutex
+	dirName         string
+	backend         storage.Backend
+	mds             storage.MetadataStore
+	streams         map[int64]*Stream
+	mu              sync.Mutex
+	streamIdCounter int64
 }
 
 func New(dirName string) (*DB, error) {
@@ -37,11 +35,12 @@ func New(dirName string) (*DB, error) {
 	}
 
 	db := &DB{
-		dirName: dirName,
-		backend: badgerBackend,
-		mds:     storage.NewBadgerMetadataStore(badgerDb),
-		streams: make(map[int64]*Stream),
-		mu:      sync.Mutex{},
+		dirName:         dirName,
+		backend:         badgerBackend,
+		mds:             storage.NewBadgerMetadataStore(badgerDb),
+		streams:         make(map[int64]*Stream),
+		mu:              sync.Mutex{},
+		streamIdCounter: 0,
 	}
 
 	return db, nil
@@ -62,8 +61,8 @@ func Open(path string) (*DB, error) {
 func (db *DB) NewStream(operatorNames []string, seq window.LengthsSequence) (*Stream, error) {
 	db.mu.Lock()
 	defer db.mu.Unlock()
-	defer atomic.AddInt64(&gStreamIdCounter, 1)
-	streamId := gStreamIdCounter
+	streamId := db.streamIdCounter
+	db.streamIdCounter++
 	windowing := window.NewGenericWindowing(seq)
 	stream, err := NewStreamWithId(db.dirName, streamId, operatorNames, windowing)
 	if err != nil {
@@ -90,9 +89,12 @@ func (db *DB) GetStream(streamId int64) (*Stream, error) {
 
 func (db *DB) Close() error {
 	// TODO: Detect when the stream has already been stopped.
-	//for _, stream := range db.streams {
-	//	stream.Close()
-	//}
+	for _, stream := range db.streams {
+		err := stream.Close()
+		if err != nil {
+			return err
+		}
+	}
 	return db.backend.Close()
 }
 
@@ -144,6 +146,7 @@ func (db *DB) ReadDB() error {
 			return err
 		}
 	}
+	db.streamIdCounter = int64(streamIds.Len())
 	return nil
 }
 

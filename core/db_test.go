@@ -212,7 +212,10 @@ func TestDBAppendAfterRead(t *testing.T) {
 func BenchmarkDB_Append(b *testing.B) {
 	dbPath := "testdb_bm1"
 	nStreams := 8
-	_ = os.RemoveAll(dbPath)
+	err := os.RemoveAll(dbPath)
+	if err != nil {
+		b.FailNow()
+	}
 	db, err := New(dbPath)
 	if err != nil {
 		b.FailNow()
@@ -252,7 +255,10 @@ func BenchmarkDB_Append(b *testing.B) {
 func BenchmarkDB_Append_Buffered(b *testing.B) {
 	dbPath := "testdb_bm2"
 	nStreams := 64
-	_ = os.RemoveAll(dbPath)
+	err := os.RemoveAll(dbPath)
+	if err != nil {
+		b.FailNow()
+	}
 	db, err := New(dbPath)
 	if err != nil {
 		b.FailNow()
@@ -266,6 +272,7 @@ func BenchmarkDB_Append_Buffered(b *testing.B) {
 	for s := 0; s < nStreams; s += 1 {
 		wg.Add(1)
 		go func() {
+			defer wg.Done()
 			exp := window.NewExponentialLengthsSequence(2)
 			stream, err := db.NewStream([]string{"count", "sum", "max"}, exp)
 			if err != nil {
@@ -289,7 +296,6 @@ func BenchmarkDB_Append_Buffered(b *testing.B) {
 			if err != nil {
 				b.FailNow()
 			}
-			wg.Done()
 		}()
 	}
 	wg.Wait()
