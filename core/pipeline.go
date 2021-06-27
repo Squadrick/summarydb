@@ -281,7 +281,7 @@ func (p *Pipeline) Restore() error {
 		writerNum = appendNum
 	}
 
-	for n := mergerNum; n < writerNum; n++ {
+	for n := mergerNum+1; n < writerNum; n++ {
 		t, _, err := p.ReadEntryFromWAL(uint64(n))
 		if err != nil {
 			return err
@@ -300,7 +300,7 @@ func (p *Pipeline) Restore() error {
 		}
 	}
 
-	for n := writerNum; n < appendNum; n++ {
+	for n := writerNum+1; n < appendNum; n++ {
 		t, v, err := p.ReadEntryFromWAL(uint64(n))
 		if err != nil {
 			return err
