@@ -101,15 +101,11 @@ func (p *Pipeline) appendWAL(timestamp int64, value float64) error {
 func (p *Pipeline) appendUnbuffered(timestamp int64, value float64) error {
 	newWindow := NewSummaryWindow(timestamp, timestamp, p.numElements, p.numElements)
 	p.streamWindowManager.InsertIntoSummaryWindow(newWindow, timestamp, value)
-	err := p.streamWindowManager.PutSummaryWindow(newWindow)
+	mergeEvent, err := p.writer.Process(newWindow)
 	if err != nil {
 		return err
 	}
-	info := &MergeEvent{
-		Id:   newWindow.Id(),
-		Size: newWindow.Size(),
-	}
-	return p.merger.Process(info)
+	return p.merger.Process(mergeEvent)
 }
 
 func (p *Pipeline) writeRemainingElementsInBuffer() error {
@@ -259,10 +255,11 @@ func (p *Pipeline) PrimeUp() error {
 	}
 
 	{
-		// TODO: Move this error ignore this writer.PrimeUp()
-		_ = p.writer.PrimeUp() // PrimeUp can fail for writer in unbuffered mode,
-		// since no count/time is written.
-		err := p.merger.PrimeUp()
+		err := p.writer.PrimeUp()
+		if err != nil {
+			return err
+		}
+		err = p.merger.PrimeUp()
 		if err != nil {
 			return err
 		}
