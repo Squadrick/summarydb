@@ -4,7 +4,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"log"
 	"math/rand"
+	"os"
+	"strconv"
 	"summarydb/storage"
 	"summarydb/window"
 	"sync/atomic"
@@ -32,6 +35,8 @@ type Pipeline struct {
 	summarizerQueue chan *IngestBuffer
 	writerQueue     chan *SummaryWindow
 	mergerQueue     chan *MergeEvent
+
+	logger *log.Logger
 }
 
 func NewPipeline(windowing window.Windowing) *Pipeline {
@@ -40,6 +45,7 @@ func NewPipeline(windowing window.Windowing) *Pipeline {
 	writerQueue := make(chan *SummaryWindow, QueueSize)
 	mergerQueue := make(chan *MergeEvent, QueueSize)
 	barrier := NewBarrier()
+	logger := log.New(os.Stdout, "[Pipeline]", log.LstdFlags)
 	pipeline := &Pipeline{
 		streamWindowManager: nil,
 		ingester:            NewIngester(summarizerQueue),
@@ -55,6 +61,7 @@ func NewPipeline(windowing window.Windowing) *Pipeline {
 		summarizerQueue:     summarizerQueue,
 		writerQueue:         writerQueue,
 		mergerQueue:         mergerQueue,
+		logger:              logger,
 	}
 	return pipeline
 }
@@ -63,11 +70,12 @@ func (p *Pipeline) Run(ctx context.Context) {
 	go p.summarizer.Run(ctx, p.summarizerQueue, p.writerQueue, p.partialBuffers)
 	go p.writer.Run(ctx, p.writerQueue, p.mergerQueue)
 	go p.merger.Run(ctx, p.mergerQueue)
-	//go p.flushWAL(ctx)
+	go p.flushWAL(ctx)
 }
 
 func (p *Pipeline) Append(timestamp int64, value float64) error {
 	if timestamp < p.lastTimestamp {
+		p.logger.Printf("Out of order: %d", timestamp)
 		timestamp = p.lastTimestamp + 1
 	}
 
@@ -89,11 +97,7 @@ func (p *Pipeline) appendWAL(timestamp int64, value float64) error {
 		var buf bytes.Buffer
 		_ = binary.Write(&buf, binary.LittleEndian, timestamp)
 		_ = binary.Write(&buf, binary.LittleEndian, value)
-		err := p.wal.Write(uint64(p.numElements), buf.Bytes())
-		if err != nil {
-			return err
-		}
-		return p.wal.Sync()
+		return p.wal.Write(uint64(p.numElements), buf.Bytes())
 	}
 	return nil
 }
@@ -109,6 +113,7 @@ func (p *Pipeline) appendUnbuffered(timestamp int64, value float64) error {
 }
 
 func (p *Pipeline) writeRemainingElementsInBuffer() error {
+	p.logger.Println("Write remaining elements in partial buffer")
 	if p.bufferSize > 0 {
 		for {
 			select {
@@ -118,10 +123,6 @@ func (p *Pipeline) writeRemainingElementsInBuffer() error {
 					for i := int64(0); i < partialBuffer.Size; i++ {
 						timestamp, value, _ := partialBuffer.Get(i)
 						err := p.appendUnbuffered(timestamp, value)
-						if err != nil {
-							return err
-						}
-						err = p.appendWAL(timestamp, value)
 						if err != nil {
 							return err
 						}
@@ -137,19 +138,23 @@ func (p *Pipeline) writeRemainingElementsInBuffer() error {
 }
 
 func (p *Pipeline) flushWAL(ctx context.Context) {
-	randomDelay := time.NewTicker(time.Duration(rand.Int31n(1000)+1) * time.Millisecond)
+	timeout := time.Duration(rand.Int31n(1000)+1) * time.Millisecond
+	randomDelay := time.NewTicker(timeout)
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-randomDelay.C:
+			p.logger.Println("Flushing WAL after: ", timeout)
 			_ = p.wal.Sync()
-			randomDelay = time.NewTicker(time.Duration(rand.Int31n(10000)) * time.Millisecond)
+			timeout = time.Duration(rand.Int31n(1000)+1) * time.Millisecond
+			randomDelay = time.NewTicker(timeout)
 		}
 	}
 }
 
 func (p *Pipeline) Flush(shutdown bool) error {
+	p.logger.Println("Flushing")
 	var summaryWindowSentinel *SummaryWindow
 	var mergeEventSentinel *MergeEvent
 	if shutdown {
@@ -160,23 +165,29 @@ func (p *Pipeline) Flush(shutdown bool) error {
 		mergeEventSentinel = ConstFlushMergeEvent()
 	}
 
+	p.logger.Println("Flush ingester")
 	p.ingester.Flush(shutdown)
 	p.barrier.Wait(SUMMARIZER)
+	p.logger.Println("Flush writer")
 	p.writerQueue <- summaryWindowSentinel
 	p.barrier.Wait(WRITER)
+	p.logger.Println("Flush merger")
 	p.mergerQueue <- mergeEventSentinel
 	p.barrier.Wait(MERGER)
 
 	// No batching while merging. Process the partial buffer elements
 	// synchronously.
+	p.logger.Println("Reset batching")
 	windowsPerMerge := p.merger.windowsPerBatch
 	p.SetWindowsPerMerge(1)
 	err := p.writeRemainingElementsInBuffer()
 	if err != nil {
 		return err
 	}
+	p.logger.Println("Restore batching")
 	p.SetWindowsPerMerge(windowsPerMerge)
 	if p.wal != nil {
+		p.logger.Println("Sync WAL")
 		err = p.wal.Sync()
 		if err != nil {
 			return err
@@ -191,6 +202,7 @@ func (p *Pipeline) SetWAL(wal *storage.Log) *Pipeline {
 }
 
 func (p *Pipeline) SetWindowManager(manager *StreamWindowManager) *Pipeline {
+	p.logger.SetPrefix("[Pipeline, " + strconv.Itoa(int(manager.id)) + "]")
 	p.streamWindowManager = manager
 	p.summarizer.SetWindowManager(manager)
 	p.writer.SetWindowManager(manager)
@@ -278,7 +290,7 @@ func (p *Pipeline) Restore() error {
 		writerNum = appendNum
 	}
 
-	for n := mergerNum+1; n < writerNum; n++ {
+	for n := mergerNum + 1; n < writerNum; n++ {
 		t, _, err := p.ReadEntryFromWAL(uint64(n))
 		if err != nil {
 			return err
@@ -297,7 +309,7 @@ func (p *Pipeline) Restore() error {
 		}
 	}
 
-	for n := writerNum+1; n < appendNum; n++ {
+	for n := writerNum + 1; n < appendNum; n++ {
 		t, v, err := p.ReadEntryFromWAL(uint64(n))
 		if err != nil {
 			return err
