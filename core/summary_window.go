@@ -56,6 +56,10 @@ func (window *SummaryWindow) Id() int64 {
 	return window.TimeStart
 }
 
+func (window *SummaryWindow) Size() int64 {
+	return window.CountEnd - window.CountStart + 1
+}
+
 func (window SummaryWindow) String() string {
 	return fmt.Sprintf("<SummaryWindow: Time [%d, %d] Count [%d, %d]>",
 		window.TimeStart,

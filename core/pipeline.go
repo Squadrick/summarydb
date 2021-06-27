@@ -106,8 +106,8 @@ func (p *Pipeline) appendUnbuffered(timestamp int64, value float64) error {
 		return err
 	}
 	info := &MergeEvent{
-		Id:   newWindow.TimeStart,
-		Size: newWindow.CountEnd - newWindow.CountStart + 1,
+		Id:   newWindow.Id(),
+		Size: newWindow.Size(),
 	}
 	return p.merger.Process(info)
 }
@@ -290,10 +290,9 @@ func (p *Pipeline) Restore() error {
 		if err != nil {
 			return err
 		}
-		size := summaryWindow.CountStart - summaryWindow.CountStart + 1
 		mergerEvent := &MergeEvent{
-			Id:   summaryWindow.TimeStart,
-			Size: size,
+			Id:   summaryWindow.Id(),
+			Size: summaryWindow.Size(),
 		}
 		err = p.merger.Process(mergerEvent)
 		if err != nil {

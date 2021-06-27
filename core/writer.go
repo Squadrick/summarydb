@@ -51,16 +51,16 @@ func (w *Writer) flush() {
 }
 
 func (w *Writer) Process(summaryWindow *SummaryWindow) (*MergeEvent, error) {
-	size := summaryWindow.CountEnd - summaryWindow.CountStart + 1
+	size := summaryWindow.Size()
 	w.numElements += size
 	w.latestTimeStart = summaryWindow.TimeStart
 	err := w.streamWindowManager.WriterBrew(
-		w.numElements, summaryWindow.TimeStart, summaryWindow)
+		w.numElements, w.latestTimeStart, summaryWindow)
 	if err != nil {
 		return nil, err
 	}
 	mergerEvent := &MergeEvent{
-		Id:   summaryWindow.TimeStart,
+		Id:   summaryWindow.Id(),
 		Size: size,
 	}
 	return mergerEvent, nil
