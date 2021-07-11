@@ -47,10 +47,7 @@ func main() {
     defer db.Close()
 
     seq := summarydb.window.ExponentialLengthsSequence(2)
-    ctx, cancelFunc := context.WithCancel(context.Background())
-    defer cancelFunc()
-
-    stream := db.NewStream([]string{"sum", "max"}, seq).Run(ctx)
+    stream := db.NewStream([]string{"sum", "max"}, seq).Run()
 
     stream.Append(0, 10.0)
     stream.Append(1, 11.0)
