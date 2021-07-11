@@ -339,6 +339,66 @@ func TestDB_Exp1Point5_10K(t *testing.T) {
 	testStub(t, dbPath, 10000, seq, 33, 35)
 }
 
+func testDurableDB(t *testing.T, dbPath string, total, split, windowsPerMerge int64) {
+	var streamId int64
+	{
+		err := os.RemoveAll(dbPath)
+		assert.NoError(t, err)
+		db, err := New(dbPath)
+		assert.NoError(t, err)
+		exp := window.NewExponentialLengthsSequence(2)
+		stream, err := db.NewStream([]string{"count", "sum"}, exp)
+		assert.NoError(t, err)
+		streamId = stream.streamId
+
+		stream.pipeline.SetWindowsPerMerge(windowsPerMerge)
+
+		for i := int64(0); i < split; i++ {
+			err = stream.pipeline.Append(i, float64(i))
+			assert.NoError(t, err)
+		}
+		assert.NoError(t, err)
+
+		for i := split; i < total; i++ {
+			err = stream.pipeline.appendWAL(i, float64(i))
+			assert.NoError(t, err)
+		}
+		err = stream.pipeline.wal.Sync()
+		assert.NoError(t, err)
+		err = db.Close()
+		assert.NoError(t, err)
+	}
+	{
+		params := QueryParams{
+			ConfidenceLevel: 0.95,
+			SDMultiplier:    1.0,
+		}
+		db, err := Open(dbPath)
+		assert.NoError(t, err)
+		stream, err := db.GetStream(streamId)
+		assert.NoError(t, err)
+		res, err := stream.Query("count", 0, total-1, &params)
+		assert.NoError(t, err)
+		assert.Equal(t, res.value.Count.Value, float64(total))
+	}
+}
+
+//func TestDB_Durable_1(t *testing.T) {
+//	testDurableDB(t, "testdb_durable_1", 10, 10, 1)
+//}
+//
+//func TestDB_Durable_2(t *testing.T) {
+//	testDurableDB(t, "testdb_durable_2", 10, 1, 1)
+//}
+//
+//func TestDB_Durable_3(t *testing.T) {
+//	testDurableDB(t, "testdb_durable_3", 10, 5, 3)
+//}
+//
+//func TestDB_Durable_4(t *testing.T) {
+//	testDurableDB(t, "testdb_durable_4", 100, 50, 7)
+//}
+
 func BenchmarkDB_Append(b *testing.B) {
 	dbPath := "testdb_bm1"
 	nStreams := 8

@@ -59,6 +59,7 @@ func NewStreamWithId(
 func (stream *Stream) SetConfig(config *StoreConfig) *Stream {
 	stream.pipeline.SetBufferSize(config.EachBufferSize)
 	stream.pipeline.SetWindowsPerMerge(config.WindowsPerMerge)
+	stream.pipeline.SetNumBuffers(config.NumBuffer)
 	return stream
 }
 
