@@ -201,15 +201,16 @@ func testStub(t *testing.T,
 	dbPath string,
 	timesteps int64,
 	seq window.LengthsSequence,
-	expectedWindows int) {
+	expectedWindows1 int,
+	expectedWindows2 int) {
 
 	var streamId int64
+	config := StoreConfig{
+		EachBufferSize:  32,
+		NumBuffer:       8,
+		WindowsPerMerge: 8,
+	}
 	{
-		config := StoreConfig{
-			EachBufferSize:  32,
-			NumBuffer:       8,
-			WindowsPerMerge: 8,
-		}
 		err := os.RemoveAll(dbPath)
 		assert.NoError(t, err)
 		db, err := New(dbPath)
@@ -258,26 +259,84 @@ func testStub(t *testing.T,
 		}
 		numSummaryWindows, err := stream.manager.GetSummaryWindowInRange(0, timesteps)
 		assert.NoError(t, err)
-		assert.Equal(t, len(numSummaryWindows), expectedWindows)
+		assert.Equal(t, len(numSummaryWindows), expectedWindows1)
+
+		stream.SetConfig(&config)
+		err = stream.Run()
+		assert.NoError(t, err)
+
+		for i := timesteps; i < 2*timesteps; i++ {
+			err := stream.Append(i, 2*float64(i))
+			assert.NoError(t, err)
+		}
+
+		err = stream.Flush()
+		assert.NoError(t, err)
+		err = db.Close()
+		assert.NoError(t, err)
+	}
+	{
+		timesteps *= 2
+		params := QueryParams{
+			ConfidenceLevel: 0.95,
+			SDMultiplier:    1.0,
+		}
+		db, err := Open(dbPath)
+		assert.NoError(t, err)
+		stream, err := db.GetStream(streamId)
+		assert.NoError(t, err)
+		{
+			result, err := stream.Query("count", 0, timesteps-1, &params)
+			assert.NoError(t, err)
+			assert.Equal(t, result.value.Count.Value, float64(timesteps))
+			assert.Equal(t, result.error, 0.0)
+		}
+		{
+			result, err := stream.Query("sum", 0, timesteps-1, &params)
+			assert.NoError(t, err)
+			assert.Equal(t, result.value.Sum.Value, float64((timesteps-1)*timesteps))
+			assert.Equal(t, result.error, 0.0)
+		}
+		{
+			result, err := stream.Query("max", 0, timesteps-1, &params)
+			assert.NoError(t, err)
+			assert.Equal(t, result.value.Max.Value, 2*float64(timesteps-1))
+		}
+
+		numSummaryWindows, err := stream.manager.GetSummaryWindowInRange(0, timesteps)
+		assert.NoError(t, err)
+		assert.Equal(t, len(numSummaryWindows), expectedWindows2)
 	}
 }
 
-func TestDB_Power(t *testing.T) {
-	dbPath := "testdb4"
+func TestDB_Power_5K(t *testing.T) {
+	dbPath := "testdb_power_5k"
 	seq := window.NewPowerLengthsSequence(1, 1, 10, 1)
-	testStub(t, dbPath, 10000, seq, 598)
+	testStub(t, dbPath, 5000, seq, 442, 598)
 }
 
-func TestDB_Exp2(t *testing.T) {
-	dbPath := "testdb5"
+func TestDB_Power_10K(t *testing.T) {
+	dbPath := "testdb_power_10k"
+	seq := window.NewPowerLengthsSequence(1, 1, 10, 1)
+	testStub(t, dbPath, 10000, seq, 598, 910)
+}
+
+func TestDB_Exp2_5K(t *testing.T) {
+	dbPath := "testdb_exp2_5k"
 	seq := window.NewExponentialLengthsSequence(2)
-	testStub(t, dbPath, 10000, seq, 18)
+	testStub(t, dbPath, 5000, seq, 16, 18)
 }
 
-func TestDB_Exp1Point5(t *testing.T) {
-	dbPath := "testdb6"
+func TestDB_Exp2_10K(t *testing.T) {
+	dbPath := "testdb_exp2_10k"
+	seq := window.NewExponentialLengthsSequence(2)
+	testStub(t, dbPath, 10000, seq, 18, 20)
+}
+
+func TestDB_Exp1Point5_10K(t *testing.T) {
+	dbPath := "testdb_1point5_10k"
 	seq := window.NewExponentialLengthsSequence(1.5)
-	testStub(t, dbPath, 10000, seq, 33)
+	testStub(t, dbPath, 10000, seq, 33, 35)
 }
 
 func BenchmarkDB_Append(b *testing.B) {
