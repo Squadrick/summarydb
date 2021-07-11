@@ -88,7 +88,6 @@ func (db *DB) GetStream(streamId int64) (*Stream, error) {
 }
 
 func (db *DB) Close() error {
-	// TODO: Detect when the stream has already been stopped.
 	for _, stream := range db.streams {
 		err := stream.Close()
 		if err != nil {

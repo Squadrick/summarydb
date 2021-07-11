@@ -37,6 +37,8 @@ type Pipeline struct {
 	mergerQueue     chan *MergeEvent
 
 	logger *log.Logger
+
+	running bool
 }
 
 func NewPipeline(windowing window.Windowing) *Pipeline {
@@ -62,6 +64,7 @@ func NewPipeline(windowing window.Windowing) *Pipeline {
 		writerQueue:         writerQueue,
 		mergerQueue:         mergerQueue,
 		logger:              logger,
+		running:             false,
 	}
 	return pipeline
 }
@@ -71,6 +74,7 @@ func (p *Pipeline) Run(ctx context.Context) {
 	go p.writer.Run(ctx, p.writerQueue, p.mergerQueue)
 	go p.merger.Run(ctx, p.mergerQueue)
 	go p.flushWAL(ctx)
+	p.running = true
 }
 
 func (p *Pipeline) Append(timestamp int64, value float64) error {
@@ -154,6 +158,10 @@ func (p *Pipeline) flushWAL(ctx context.Context) {
 }
 
 func (p *Pipeline) Flush(shutdown bool) error {
+	if shutdown && !p.running {
+		return nil
+	}
+
 	p.logger.Println("Flushing")
 	var summaryWindowSentinel *SummaryWindow
 	var mergeEventSentinel *MergeEvent
@@ -192,6 +200,10 @@ func (p *Pipeline) Flush(shutdown bool) error {
 		if err != nil {
 			return err
 		}
+	}
+
+	if shutdown {
+		p.running = false
 	}
 	return nil
 }

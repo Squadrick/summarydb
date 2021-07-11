@@ -1,7 +1,6 @@
 package core
 
 import (
-	"context"
 	"github.com/stretchr/testify/assert"
 	"os"
 	"summarydb/window"
@@ -20,9 +19,7 @@ func TestBasicDB(t *testing.T) {
 		exp := window.NewExponentialLengthsSequence(2)
 		stream, err := db.NewStream([]string{"count", "sum"}, exp)
 		assert.NoError(t, err)
-		ctx, cancelFunc := context.WithCancel(context.Background())
-		// TODO: Let `db` start the stream, and keep track of the ctxs?
-		err = stream.Run(ctx)
+		err = stream.Run()
 		assert.NoError(t, err)
 		streamId = stream.streamId
 		for i := 0; i < 100; i++ {
@@ -32,7 +29,6 @@ func TestBasicDB(t *testing.T) {
 
 		err = db.Close()
 		assert.NoError(t, err)
-		cancelFunc()
 		assert.Equal(t, err, nil)
 	}
 	{
@@ -73,9 +69,7 @@ func TestDBWithLambda(t *testing.T) {
 		exp := window.NewExponentialLengthsSequence(2)
 		stream, err := db.NewStream([]string{"count", "sum"}, exp)
 		assert.NoError(t, err)
-		ctx, cancelFunc := context.WithCancel(context.Background())
-		// TODO: Let `db` start the stream, and keep track of the ctxs?
-		err = stream.Run(ctx)
+		err = stream.Run()
 		assert.NoError(t, err)
 		streamId = stream.streamId
 		for i := 0; i < 100; i++ {
@@ -89,7 +83,6 @@ func TestDBWithLambda(t *testing.T) {
 		err = stream.EndLandmark(int64(99))
 		assert.NoError(t, err)
 
-		cancelFunc()
 		err = db.Close()
 		assert.NoError(t, err)
 	}
@@ -135,9 +128,7 @@ func TestDBAppendAfterRead(t *testing.T) {
 		exp := window.NewExponentialLengthsSequence(2)
 		stream, err := db.NewStream([]string{"count", "sum"}, exp)
 		assert.NoError(t, err)
-		ctx, cancelFunc := context.WithCancel(context.Background())
-		// TODO: Let `db` start the stream, and keep track of the ctxs?
-		err = stream.Run(ctx)
+		err = stream.Run()
 		assert.NoError(t, err)
 		streamId = stream.streamId
 		for i := 0; i < 50; i++ {
@@ -146,7 +137,6 @@ func TestDBAppendAfterRead(t *testing.T) {
 		}
 
 		err = db.Close()
-		cancelFunc()
 		assert.NoError(t, err)
 	}
 	{
@@ -170,8 +160,7 @@ func TestDBAppendAfterRead(t *testing.T) {
 			assert.Equal(t, result.value.Sum.Value, 49.0*50/2)
 			assert.Equal(t, result.error, 0.0)
 		}
-		ctx, cancelFunc := context.WithCancel(context.Background())
-		err = stream.Run(ctx)
+		err = stream.Run()
 		assert.NoError(t, err)
 		for i := 50; i < 100; i++ {
 			err := stream.Append(int64(i), float64(i))
@@ -179,7 +168,6 @@ func TestDBAppendAfterRead(t *testing.T) {
 		}
 
 		err = db.Close()
-		cancelFunc()
 		assert.NoError(t, err)
 	}
 	{
@@ -229,9 +217,7 @@ func testStub(t *testing.T,
 		stream, err := db.NewStream([]string{"count", "sum", "max"}, seq)
 		assert.NoError(t, err)
 		stream.SetConfig(&config)
-		ctx, cancelFunc := context.WithCancel(context.Background())
-		// TODO: Let `db` start the stream, and keep track of the ctxs?
-		err = stream.Run(ctx)
+		err = stream.Run()
 		assert.NoError(t, err)
 		streamId = stream.streamId
 		for i := int64(0); i < timesteps; i++ {
@@ -243,7 +229,6 @@ func testStub(t *testing.T,
 		assert.NoError(t, err)
 		err = db.Close()
 		assert.NoError(t, err)
-		cancelFunc()
 	}
 	{
 		params := QueryParams{
@@ -320,9 +305,7 @@ func BenchmarkDB_Append(b *testing.B) {
 			if err != nil {
 				b.FailNow()
 			}
-			ctx, cancelFunc := context.WithCancel(context.Background())
-			defer cancelFunc()
-			err = stream.Run(ctx)
+			err = stream.Run()
 			if err != nil {
 				b.FailNow()
 			}
@@ -375,9 +358,7 @@ func BenchmarkDB_Append_Buffered(b *testing.B) {
 				b.FailNow()
 			}
 			stream.SetConfig(&config)
-			ctx, cancelFunc := context.WithCancel(context.Background())
-			defer cancelFunc()
-			err = stream.Run(ctx)
+			err = stream.Run()
 			if err != nil {
 				b.FailNow()
 			}

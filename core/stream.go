@@ -19,6 +19,7 @@ type Stream struct {
 	backendSet     bool
 	running        bool
 	landmarkWindow *LandmarkWindow
+	ctx            context.Context
 }
 
 func newWAL(dirName string, id int64) (*storage.Log, error) {
@@ -51,6 +52,7 @@ func NewStreamWithId(
 		backendSet:     false,
 		running:        false,
 		landmarkWindow: nil,
+		ctx:            nil,
 	}, nil
 }
 
@@ -67,12 +69,15 @@ func (stream *Stream) SetBackend(backend storage.Backend, cacheEnabled bool) *St
 	return stream
 }
 
-func (stream *Stream) Run(ctx context.Context) error {
+func (stream *Stream) Run() error {
+	if stream.ctx == nil {
+		stream.ctx = context.Background()
+	}
 	if !stream.backendSet {
 		return errors.New("backend not set")
 	}
 	stream.running = true
-	stream.pipeline.Run(ctx)
+	stream.pipeline.Run(stream.ctx)
 	return nil
 }
 
@@ -135,10 +140,15 @@ func (stream *Stream) Flush() error {
 }
 
 func (stream *Stream) Close() error {
-	err := stream.pipeline.wal.Close()
+	err := stream.pipeline.Flush(true)
 	if err != nil {
 		return err
 	}
+	err = stream.pipeline.wal.Close()
+	if err != nil {
+		return err
+	}
+	stream.ctx = nil
 	return nil
 }
 
