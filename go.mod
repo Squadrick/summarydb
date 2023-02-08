@@ -8,6 +8,6 @@ require (
 	github.com/dgraph-io/ristretto v0.0.3
 	github.com/kr/pretty v0.2.0 // indirect
 	github.com/stretchr/testify v1.4.0
-	github.com/tidwall/gjson v1.6.1
+	github.com/tidwall/gjson v1.9.3
 	github.com/tidwall/tinylru v1.0.2
 )
